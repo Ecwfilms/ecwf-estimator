@@ -15,6 +15,67 @@ def extract_text_from_pdf(file):
     return text
 
 
+def extract_client_info(text):
+    """
+    Extract client name, phone, email, and address from TintWiz worksheet header.
+
+    TintWiz header format (first 3-4 lines):
+      Line 1: <Client Name> (<Company Type>)   OR just <Client Name>
+      Line 2: Phone: <phone>  Email: <email>
+      Line 3: Address: <full address>
+      Line 4: Project: ...
+
+    Returns a dict with keys: name, phone, email, address
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+    client = {
+        "name": None,
+        "phone": None,
+        "email": None,
+        "address": None,
+    }
+
+    # Line 0 — client/company name (stop before "Project:" line)
+    for i, line in enumerate(lines[:6]):
+        # Skip lines that look like data rows
+        if line.startswith("Project:") or line.startswith("Phone:") or line.startswith("Address:"):
+            break
+        # First non-header line is the client name
+        if not client["name"]:
+            # Strip parenthetical company type if present: "NGS Films (Films and Graphics)"
+            name_clean = re.sub(r"\s*\(.*?\)\s*$", "", line).strip()
+            if name_clean:
+                client["name"] = name_clean
+
+    # Scan first 10 lines for phone/email/address
+    for line in lines[:10]:
+        # Phone and Email on same line: "Phone: 555-123-4567  Email: foo@bar.com"
+        phone_match = re.search(
+            r"Phone:\s*([\d\s\(\)\-\+\.]{7,20})", line, re.IGNORECASE
+        )
+        if phone_match:
+            raw_phone = phone_match.group(1).strip().rstrip(".")
+            # Normalize to digits only for validation, keep formatted
+            digits = re.sub(r"\D", "", raw_phone)
+            if len(digits) >= 7:
+                client["phone"] = raw_phone
+
+        email_match = re.search(
+            r"Email:\s*([a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9.\-]+)",
+            line,
+            re.IGNORECASE,
+        )
+        if email_match:
+            client["email"] = email_match.group(1).strip()
+
+        addr_match = re.search(r"Address:\s*(.+)", line, re.IGNORECASE)
+        if addr_match:
+            client["address"] = addr_match.group(1).strip()
+
+    return client
+
+
 def normalize_product_name(raw_name):
     raw = " ".join(raw_name.split()).strip().lower()
 
@@ -43,14 +104,46 @@ def normalize_product_name(raw_name):
     # Huper Optik Ceramic series
     if "ceramic 70" in raw:
         return "Huper Ceramic 70"
-    if "ceramic 50" in raw or "ceramic 60" in raw:
-        return "Huper Ceramic 50/60"
+    if "ceramic 60" in raw:
+        return "Huper Ceramic 60"
+    if "ceramic 50" in raw:
+        return "Huper Ceramic 50"
+    if "ceramic 40" in raw:
+        return "Huper Ceramic 40"
+    if "ceramic 30" in raw:
+        return "Huper Ceramic 30"
+    if "ceramic 20" in raw:
+        return "Huper Ceramic 20"
     if "multi-layer ceramic" in raw or "multilayer ceramic" in raw:
         return "Huper Multi-Layer Ceramic"
     if "single layer ceramic" in raw:
         return "Huper Single Layer Ceramic"
     if "klar 85" in raw:
         return "Huper KLAR 85"
+    if "select drei" in raw:
+        return "Huper Select Drei"
+    if "select sech" in raw:
+        return "Huper Select Sech"
+    if "fusion 10" in raw:
+        return "Huper Fusion 10"
+    if "fusion 20" in raw:
+        return "Huper Fusion 20"
+    if "fusion 28" in raw:
+        return "Huper Fusion 28"
+    if "bronze 25" in raw:
+        return "Huper Bronze 25"
+    if "bronze 35" in raw:
+        return "Huper Bronze 35"
+    if "silver 18" in raw:
+        return "Huper Silver 18"
+    if "silver 30" in raw:
+        return "Huper Silver 30"
+    if "clearshield 4mil" in raw or "clear shield 4mil" in raw:
+        return "Huper ClearShield 4mil"
+    if "clearshield 8mil" in raw or "clear shield 8mil" in raw:
+        return "Huper ClearShield 8mil"
+    if "clearshield 14mil" in raw or "clear shield 14mil" in raw:
+        return "Huper ClearShield 14mil"
 
     # Edge Reform
     if "reform" in raw:
@@ -64,19 +157,49 @@ def normalize_product_name(raw_name):
     if "pristine ceramic" in raw:
         return "Edge Pristine Ceramic"
 
-    # Safety / Security
+    # Edge Safety / Security
+    if "guardian" in raw and "12mil" in raw:
+        return "Guardian 12mil"
     if "guardian" in raw and "8mil" in raw:
         return "Guardian 8mil"
     if "guardian" in raw and "4mil" in raw:
         return "Guardian 4mil"
-    if "guardian" in raw and "12mil" in raw:
-        return "Guardian 12mil"
+    if ("cs" in raw or "clear shield" in raw) and "14mil" in raw:
+        return "CS 14mil"
+    if ("cs" in raw or "clear shield" in raw) and "8mil" in raw:
+        return "CS 8mil"
+    if ("cs" in raw or "clear shield" in raw) and "4mil" in raw:
+        return "CS 4mil"
+    if "shield 35" in raw and "8mil" in raw:
+        return "Shield 35 Neutral 8mil"
+
+    # Solyx UltraSafe
+    if "ultrasafe" in raw and "white" in raw:
+        return "UltraSafe White Matte"
+    if "ultrasafe" in raw and "8mil" in raw:
+        return "UltraSafe 8mil"
+    if "ultrasafe" in raw and "4mil" in raw:
+        return "UltraSafe 4mil"
+    if "ultrasafe" in raw and "2mil" in raw:
+        return "UltraSafe 2mil"
+
+    # Solyx SXF series
+    if "sxf-5050" in raw or "sxf 5050" in raw or "5050" in raw:
+        return "SXF-5050"
+    if "sxf-5060" in raw or "sxf 5060" in raw or "5060" in raw:
+        return "SXF-5060"
+    if "sxf-5070" in raw or "sxf 5070" in raw or "5070" in raw:
+        return "SXF-5070"
+    if "sxf-5080" in raw or "sxf 5080" in raw or "5080" in raw:
+        return "SXF-5080"
 
     # Decorative
     if "frost" in raw and "decorative" not in raw:
         return "Frost"
     if "blackout" in raw:
         return "Blackout"
+    if "whiteout" in raw:
+        return "Whiteout"
 
     return raw_name.strip()
 

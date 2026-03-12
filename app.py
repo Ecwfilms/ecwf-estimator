@@ -1,10 +1,10 @@
-
-# East Coast Window Films — Internal Estimator v4
-# Streamlit UI with per-window complexity scoring, room selector, Go/No-Go engine,
-# Film Lookup tab, equipment rental, and exterior install premium.
+# app.py
+# East Coast Window Films — Internal Estimator v4.1
+# Upgrades: smart Film Lookup, caulking for safety films only (8mil+),
+#           client info scraping with clickable links, session persistence.
 
 import streamlit as st
-from worksheet_parser import extract_text_from_pdf, extract_window_data
+from worksheet_parser import extract_text_from_pdf, extract_window_data, extract_client_info
 from pricing_engine import (
     optimize_for_roll_width,
     group_windows_by_section,
@@ -26,6 +26,25 @@ from pricing_engine import (
 from pane_expander import expand_windows
 
 # ─────────────────────────────────────────────
+# Safety film caulking threshold (8mil and above)
+# ─────────────────────────────────────────────
+CAULKING_FILMS = {
+    "Guardian 8mil", "Guardian 12mil",
+    "CS 8mil", "CS 14mil",
+    "Shield 35 Neutral 8mil",
+    "UltraSafe 8mil", "UltraSafe White Matte",
+    "Huper ClearShield 8mil", "Huper ClearShield 14mil",
+    "Huper Shield 35 Neutral 8mil",
+}
+
+def needs_caulking(film_name: str) -> bool:
+    """Return True if this film is 8mil+ safety/security and requires caulking option."""
+    return film_name in CAULKING_FILMS or any(
+        kw in film_name.lower() for kw in ["8mil", "12mil", "14mil"]
+        if is_safety_film(film_name)
+    )
+
+# ─────────────────────────────────────────────
 # Page Config
 # ─────────────────────────────────────────────
 st.set_page_config(
@@ -36,6 +55,16 @@ st.set_page_config(
 
 st.title("🪟 East Coast Window Films — Estimator")
 st.caption("Internal use only. Upload a TintWiz worksheet PDF to begin.")
+
+# ─────────────────────────────────────────────
+# Session State — persist uploaded file data
+# ─────────────────────────────────────────────
+if "pdf_text" not in st.session_state:
+    st.session_state["pdf_text"] = None
+if "pdf_name" not in st.session_state:
+    st.session_state["pdf_name"] = None
+if "client_info" not in st.session_state:
+    st.session_state["client_info"] = None
 
 # ─────────────────────────────────────────────
 # Sidebar: Job Settings
@@ -77,6 +106,19 @@ with st.sidebar:
     )
 
     st.divider()
+
+    # Clear session button
+    if st.session_state["pdf_name"]:
+        st.caption(f"📄 Loaded: **{st.session_state['pdf_name']}**")
+        if st.button("🗑️ Clear / Load New Job"):
+            st.session_state["pdf_text"] = None
+            st.session_state["pdf_name"] = None
+            st.session_state["client_info"] = None
+            st.rerun()
+    else:
+        st.caption("No worksheet loaded.")
+
+    st.divider()
     st.caption("Film costs loaded from Edge, Huper Optik, and Solyx/Decorative Films. Verified Mar 2026.")
 
 # ─────────────────────────────────────────────
@@ -89,15 +131,41 @@ tab_estimator, tab_lookup = st.tabs(["📋 Estimator", "🔍 Film Lookup"])
 # ═════════════════════════════════════════════
 with tab_estimator:
 
-    uploaded_file = st.file_uploader(
-        "Upload TintWiz Worksheet",
-        type=["pdf"],
-        accept_multiple_files=False,
-        help="Export the worksheet from TintWiz as a PDF and upload it here."
-    )
+    # ── File uploader (only shown if no file in session) ──
+    if st.session_state["pdf_text"] is None:
+        uploaded_file = st.file_uploader(
+            "Upload TintWiz Worksheet",
+            type=["pdf"],
+            accept_multiple_files=False,
+            help="Export the worksheet from TintWiz as a PDF and upload it here."
+        )
+        if uploaded_file:
+            raw_text = extract_text_from_pdf(uploaded_file)
+            st.session_state["pdf_text"] = raw_text
+            st.session_state["pdf_name"] = uploaded_file.name
+            st.session_state["client_info"] = extract_client_info(raw_text)
+            st.rerun()
+    else:
+        # Show a small re-upload option at the top
+        with st.expander("📂 Upload a different worksheet"):
+            new_file = st.file_uploader(
+                "Replace current worksheet",
+                type=["pdf"],
+                key="replace_uploader",
+                help="Upload a new worksheet to replace the current one."
+            )
+            if new_file:
+                raw_text = extract_text_from_pdf(new_file)
+                st.session_state["pdf_text"] = raw_text
+                st.session_state["pdf_name"] = new_file.name
+                st.session_state["client_info"] = extract_client_info(raw_text)
+                st.rerun()
 
-    if uploaded_file:
-        text = extract_text_from_pdf(uploaded_file)
+    # ── Main estimator content ──
+    if st.session_state["pdf_text"]:
+        text = st.session_state["pdf_text"]
+        client = st.session_state["client_info"] or {}
+
         parsed = extract_window_data(text)
 
         windows = parsed["windows"]
@@ -106,11 +174,45 @@ with tab_estimator:
         project_total_panes = parsed["project_total_panes"]
 
         if not windows:
-            st.error("No window data could be parsed from this PDF. Please check the file format.")
+            st.error(
+                "No window data with film assignments could be parsed from this PDF. "
+                "Make sure you have assigned film products to each room in TintWiz before exporting."
+            )
             st.stop()
 
         section_groups = group_windows_by_section(windows)
         all_section_names = list(section_groups.keys())
+
+        # ── Client Info Card ─────────────────────
+        client_name = client.get("name")
+        client_phone = client.get("phone")
+        client_email = client.get("email")
+        client_address = client.get("address")
+
+        if any([client_name, client_phone, client_email, client_address]):
+            st.subheader("👤 Client")
+            info_parts = []
+
+            if client_name:
+                info_parts.append(f"**{client_name}**")
+
+            if client_phone:
+                # Format as tel: link (strip non-digits for href)
+                digits = "".join(c for c in client_phone if c.isdigit())
+                info_parts.append(f"[📞 {client_phone}](tel:{digits})")
+
+            if client_email:
+                info_parts.append(f"[✉️ {client_email}](mailto:{client_email})")
+
+            if client_address:
+                # Encode address for Google Maps / Apple Maps universal link
+                import urllib.parse
+                encoded_addr = urllib.parse.quote(client_address)
+                maps_url = f"https://maps.google.com/?q={encoded_addr}"
+                info_parts.append(f"[📍 {client_address}]({maps_url})")
+
+            st.markdown("   |   ".join(info_parts))
+            st.divider()
 
         # ── Project Summary ──────────────────────
         st.subheader("📋 Project Summary")
@@ -138,22 +240,38 @@ with tab_estimator:
 
         st.divider()
 
+        # ── Detect if any active section uses a caulking-required film ──
+        active_films_all = []
+        for sname in active_section_names:
+            for w in section_groups.get(sname, []):
+                active_films_all.append(w.get("film", ""))
+
+        job_needs_caulking = any(needs_caulking(f) for f in active_films_all)
+
         # ── Additional Line Items ────────────────
         st.subheader("🔧 Additional Line Items")
 
         add_col1, add_col2, add_col3 = st.columns(3)
 
         with add_col1:
-            caulking_lf = st.number_input(
-                "Caulking (Linear Feet)",
-                min_value=0.0,
-                value=0.0,
-                step=1.0,
-                help="Enter total linear feet of caulking required. Charged at $3.00/LF."
-            )
-            caulking_cost = calculate_caulking_cost(caulking_lf)
-            if caulking_lf > 0:
-                st.caption(f"Caulking: {caulking_lf:.0f} LF × $3.00 = **${caulking_cost:.2f}**")
+            if job_needs_caulking:
+                caulking_lf = st.number_input(
+                    "Caulking (Linear Feet)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1.0,
+                    help="Required for safety/security films 8mil and above. Charged at $3.00/LF. "
+                         "Measure the perimeter of each window getting safety film."
+                )
+                caulking_cost = calculate_caulking_cost(caulking_lf)
+                if caulking_lf > 0:
+                    st.caption(f"Caulking: {caulking_lf:.0f} LF × $3.00 = **${caulking_cost:.2f}**")
+                else:
+                    st.caption("🛡️ Safety film detected — enter caulking LF above.")
+            else:
+                caulking_lf = 0.0
+                caulking_cost = 0.0
+                st.caption("Caulking not applicable for this job's film selection.")
 
         with add_col2:
             equipment_rental = st.number_input(
@@ -242,7 +360,8 @@ with tab_estimator:
                 st.markdown(f"**Product:** {film_display}  |  **Panes:** {section_panes_total}  |  **Sqft:** {section_sqft}")
 
                 if is_safety_film(primary_film):
-                    st.info("🛡️ Safety & Security film — ordered in full rolls only. Labor rate: $3.50/sqft.")
+                    caulk_note = " Caulking required (8mil+)." if needs_caulking(primary_film) else ""
+                    st.info(f"🛡️ Safety & Security film — ordered in full rolls only. Labor rate: $3.50/sqft.{caulk_note}")
 
                 st.markdown("**Complexity Factors** — check boxes for windows that have special conditions:")
 
@@ -422,7 +541,7 @@ with tab_estimator:
 
                 st.divider()
 
-     # ─────────────────────────────────────────────
+        # ─────────────────────────────────────────────
         # Order Summary
         # ─────────────────────────────────────────────
         if order_lines:
@@ -435,7 +554,6 @@ with tab_estimator:
                 st.markdown(f"- Equipment Rental: ${equipment_rental:,.2f}")
 
             # ── Free Shipping Check ──────────────────
-            # Group material costs by supplier to check thresholds
             supplier_totals: dict = {}
             for sname, res in section_results.items():
                 if res.get("error") or not res.get("is_active"):
@@ -445,8 +563,6 @@ with tab_estimator:
 
             st.markdown("**Shipping Status:**")
             for supplier, total in sorted(supplier_totals.items()):
-                shipping = check_free_shipping(list(FILM_RATES.keys())[0], total)
-                # Use the supplier directly
                 threshold = 1000.0
                 if total >= threshold:
                     st.success(f"✅ {supplier}: ${total:,.2f} — **Free shipping** (over ${threshold:,.0f})")
@@ -454,7 +570,9 @@ with tab_estimator:
                     shortfall = round(threshold - total, 2)
                     st.warning(f"⚠️ {supplier}: ${total:,.2f} — Add ${shortfall:,.2f} more to qualify for free shipping")
 
-            st.divider()     # ─────────────────────────────────────────
+            st.divider()
+
+        # ─────────────────────────────────────────
         # Job Totals Dashboard
         # ─────────────────────────────────────────
         st.subheader("💰 Job Totals")
@@ -572,112 +690,184 @@ with tab_estimator:
 # ═════════════════════════════════════════════
 with tab_lookup:
     st.subheader("🔍 Film Price Lookup")
-    st.caption("Search any film in the database to see wholesale cost, full roll price, and cost per sqft on the fly.")
+    st.caption(
+        "Search by film name, code, or enter dimensions to get an instant cost. "
+        "Examples: **Huper Ceramic 40**, **SXF-5050**, **60x25 Ceramic 40**, **Guardian 8mil**"
+    )
 
-    # Build a flat list of all films for the search
+    # Build a flat list of all films
     all_film_names = sorted(FILM_RATES.keys())
 
     search_query = st.text_input(
-        "Search film by name or code",
-        placeholder="e.g., UltraView, SXF-5050, Ceramic 40, Guardian...",
-        help="Type any part of the film name or product code."
+        "Search film — name, code, or dimensions (e.g. 60x25 Huper Ceramic 40)",
+        placeholder="e.g., Ceramic 40  |  Guardian 8mil  |  60x25 Ceramic 40  |  SXF-5050",
+        help="Type any part of the film name, product code, or enter WxH dimensions before the film name."
     )
 
-    if search_query:
-        matches = [f for f in all_film_names if search_query.lower() in f.lower()]
+    # ── Parse dimension prefix from query ──
+    # Supports formats: "60x25 Ceramic 40", "60 x 25 ceramic 40", "60×25 ceramic 40"
+    import re as _re
+    dim_match = _re.match(
+        r"^\s*(\d+)\s*[xX×]\s*(\d+)\s+(.*)",
+        search_query.strip()
+    )
+
+    parsed_width = None
+    parsed_height = None
+    film_search_term = search_query.strip()
+
+    if dim_match:
+        parsed_width = int(dim_match.group(1))
+        parsed_height = int(dim_match.group(2))
+        film_search_term = dim_match.group(3).strip()
+
+    # ── Filter films ──
+    if film_search_term:
+        matches = [f for f in all_film_names if film_search_term.lower() in f.lower()]
     else:
         matches = all_film_names
 
     if not matches:
-        st.warning(f"No films found matching '{search_query}'. Try a different search term.")
+        st.warning(f"No films found matching '{film_search_term}'. Try a different search term.")
     else:
-        st.caption(f"Showing {len(matches)} film(s).")
+        if not (parsed_width and parsed_height):
+            # Standard table view
+            st.caption(f"Showing {len(matches)} film(s).")
 
-        lookup_rows = []
-        for film_name in matches:
-            widths = FILM_RATES[film_name]
-            for width, rates in sorted(widths.items()):
-                btf_base = rates.get("btf_base")
-                btf_fee = rates.get("btf_fee", 0)
-                roll_100 = rates.get("roll_100lf")
-                roll_50 = rates.get("roll_50lf")
+            lookup_rows = []
+            for film_name in matches:
+                widths = FILM_RATES[film_name]
+                for width, rates in sorted(widths.items()):
+                    btf_base = rates.get("btf_base")
+                    btf_fee = rates.get("btf_fee", 0)
+                    roll_100 = rates.get("roll_100lf")
+                    roll_50 = rates.get("roll_50lf")
 
-                if btf_base is not None:
-                    btf_total = btf_base + btf_fee
-                    btf_per_sqft = round(btf_total / (width / 12), 3)
-                    btf_display = f"${btf_total:.3f}/LF (${btf_per_sqft:.3f}/sqft)"
-                else:
-                    btf_display = "Full roll only"
-                    btf_per_sqft = None
+                    if btf_base is not None:
+                        btf_total = btf_base + btf_fee
+                        btf_per_sqft = round(btf_total / (width / 12), 3)
+                        btf_display = f"${btf_total:.3f}/LF (${btf_per_sqft:.3f}/sqft)"
+                    else:
+                        btf_display = "Full roll only"
+                        btf_per_sqft = None
 
-                if roll_100:
-                    roll_100_per_sqft = round(roll_100 / (width / 12) / 100, 3)
-                    roll_100_display = f"${roll_100:,.2f} (${roll_100_per_sqft:.3f}/sqft)"
-                else:
-                    roll_100_display = "—"
+                    if roll_100:
+                        roll_100_per_sqft = round(roll_100 / (width / 12) / 100, 3)
+                        roll_100_display = f"${roll_100:,.2f} (${roll_100_per_sqft:.3f}/sqft)"
+                    else:
+                        roll_100_display = "—"
 
-                roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
+                    roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
+                    floor = get_price_floor(film_name)
 
-                floor = get_price_floor(film_name)
+                    caulk_flag = "🛡️ Caulking req." if film_name in CAULKING_FILMS else ""
 
-                lookup_rows.append({
-                    "Film": film_name,
-                    "Width": f"{width}\"",
-                    "By the Foot": btf_display,
-                    "100 LF Roll": roll_100_display,
-                    "50 LF Roll": roll_50_display,
-                    "Min Sell Floor": f"${floor:.2f}/sqft",
-                })
+                    lookup_rows.append({
+                        "Film": film_name,
+                        "Width": f"{width}\"",
+                        "By the Foot": btf_display,
+                        "100 LF Roll": roll_100_display,
+                        "50 LF Roll": roll_50_display,
+                        "Min Sell Floor": f"${floor:.2f}/sqft",
+                        "Notes": caulk_flag,
+                    })
 
-        if lookup_rows:
-            st.dataframe(lookup_rows, use_container_width=True)
+            if lookup_rows:
+                st.dataframe(lookup_rows, use_container_width=True)
 
-        # Quick calculator
-        st.divider()
-        st.subheader("⚡ Quick Cost Calculator")
-        st.caption("Select a film and enter a quantity to get an instant cost estimate.")
+        else:
+            # ── Dimension-aware instant quote ──
+            w_in = parsed_width
+            h_in = parsed_height
+            sqft_single = round((w_in / 12) * (h_in / 12), 2)
 
-        qc_col1, qc_col2, qc_col3 = st.columns(3)
+            st.markdown(f"### Instant Quote: {w_in}\" × {h_in}\" — {sqft_single:.2f} sqft per pane")
+            st.caption(f"Film filter: **{film_search_term}** | {len(matches)} match(es)")
 
-        with qc_col1:
-            selected_film = st.selectbox("Film", options=all_film_names, key="qc_film")
+            for film_name in matches:
+                widths_available = sorted(FILM_RATES[film_name].keys())
 
-        available_widths = sorted(FILM_RATES.get(selected_film, {}).keys())
+                # Find the best roll width that fits the window width
+                fitting_widths = [rw for rw in widths_available if rw >= w_in]
+                if not fitting_widths:
+                    fitting_widths = widths_available  # show all if none fit
 
-        with qc_col2:
-            selected_width = st.selectbox(
-                "Roll Width",
-                options=available_widths,
-                format_func=lambda w: f"{w}\"",
-                key="qc_width"
-            )
+                with st.expander(f"**{film_name}**", expanded=len(matches) <= 3):
+                    for roll_w in fitting_widths:
+                        rates = FILM_RATES[film_name][roll_w]
+                        btf_base = rates.get("btf_base")
+                        btf_fee = rates.get("btf_fee", 0)
+                        roll_100 = rates.get("roll_100lf")
 
-        with qc_col3:
-            qty_lf = st.number_input("Linear Feet Needed", min_value=1, value=50, step=5, key="qc_lf")
+                        # LF needed for one pane on this roll width
+                        lf_per_pane = round(h_in / 12, 3)
+                        lf_with_buffer = round(lf_per_pane + 0.5, 3)  # 6" bleed per pane
 
-        if selected_film and selected_width and qty_lf:
-            result = calculate_material_cost(selected_film, selected_width, qty_lf, 0)
-            rates = result["rates"]
+                        if btf_base is not None:
+                            cost_per_pane = round((btf_base + btf_fee) * lf_with_buffer, 2)
+                            cost_per_sqft = round(cost_per_pane / sqft_single, 3) if sqft_single > 0 else 0
+                            cost_str = f"**${cost_per_pane:.2f}** per pane (${cost_per_sqft:.3f}/sqft) at {roll_w}\" roll"
+                        else:
+                            cost_str = f"Full roll only at {roll_w}\" — see 100 LF roll price"
 
-            st.markdown("---")
-            res_col1, res_col2, res_col3 = st.columns(3)
+                        roll_note = f" | 100 LF roll: ${roll_100:,.2f}" if roll_100 else ""
+                        floor = get_price_floor(film_name)
+                        min_sell = round(floor * sqft_single, 2)
+                        caulk_note = " 🛡️ **Caulking required**" if film_name in CAULKING_FILMS else ""
 
-            with res_col1:
-                st.metric("Order Quantity", f"{result['order_lf']} LF")
-                st.metric("Order Method", result["order_method"].replace("_", " ").title())
+                        st.markdown(f"- {cost_str}{roll_note} | Min sell: **${min_sell:.2f}**/pane{caulk_note}")
 
-            with res_col2:
-                if result.get("btf_cost"):
-                    st.metric("By-the-Foot Cost", f"${result['btf_cost']:,.2f}")
-                if result.get("full_roll_cost"):
-                    st.metric("Full Roll Cost", f"${result['full_roll_cost']:,.2f}")
+    # ── Quick Cost Calculator ──────────────────
+    st.divider()
+    st.subheader("⚡ Quick Cost Calculator")
+    st.caption("Select a film and enter a quantity to get an instant cost estimate.")
 
-            with res_col3:
-                st.metric("Recommended Cost", f"${result['recommended_cost']:,.2f}")
-                if result.get("full_roll_savings"):
-                    st.success(f"💡 Buy the full roll and save ${result['full_roll_savings']:.2f}!")
+    qc_col1, qc_col2, qc_col3 = st.columns(3)
 
-            floor = get_price_floor(selected_film)
-            sqft = (selected_width / 12) * qty_lf
-            floor_sell = round(floor * sqft, 2)
-            st.caption(f"Estimated sqft at {selected_width}\" × {qty_lf} LF = {sqft:.1f} sqft | Min sell floor: ${floor_sell:,.2f}")
+    with qc_col1:
+        selected_film = st.selectbox("Film", options=all_film_names, key="qc_film")
+
+    available_widths = sorted(FILM_RATES.get(selected_film, {}).keys())
+
+    with qc_col2:
+        selected_width = st.selectbox(
+            "Roll Width",
+            options=available_widths,
+            format_func=lambda w: f"{w}\"",
+            key="qc_width"
+        )
+
+    with qc_col3:
+        qty_lf = st.number_input("Linear Feet Needed", min_value=1, value=50, step=5, key="qc_lf")
+
+    if selected_film and selected_width and qty_lf:
+        result = calculate_material_cost(selected_film, selected_width, qty_lf, 0)
+        rates = result["rates"]
+
+        st.markdown("---")
+        res_col1, res_col2, res_col3 = st.columns(3)
+
+        with res_col1:
+            st.metric("Order Quantity", f"{result['order_lf']} LF")
+            st.metric("Order Method", result["order_method"].replace("_", " ").title())
+
+        with res_col2:
+            if result.get("btf_cost"):
+                st.metric("By-the-Foot Cost", f"${result['btf_cost']:,.2f}")
+            if result.get("full_roll_cost"):
+                st.metric("Full Roll Cost", f"${result['full_roll_cost']:,.2f}")
+
+        with res_col3:
+            st.metric("Recommended Cost", f"${result['recommended_cost']:,.2f}")
+            if result.get("full_roll_savings"):
+                st.success(f"💡 Buy the full roll and save ${result['full_roll_savings']:.2f}!")
+
+        floor = get_price_floor(selected_film)
+        sqft = (selected_width / 12) * qty_lf
+        floor_sell = round(floor * sqft, 2)
+        st.caption(
+            f"Estimated sqft at {selected_width}\" × {qty_lf} LF = {sqft:.1f} sqft | "
+            f"Min sell floor: ${floor_sell:,.2f}"
+        )
+        if selected_film in CAULKING_FILMS:
+            st.info("🛡️ This is a safety/security film (8mil+). Caulking will be required at installation.")
