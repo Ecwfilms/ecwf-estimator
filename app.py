@@ -5,6 +5,7 @@
 
 import streamlit as st
 from worksheet_parser import extract_text_from_pdf, extract_window_data, extract_client_info
+from proposal_generator import generate_proposal_pdf
 from pricing_engine import (
     optimize_for_roll_width,
     group_windows_by_section,
@@ -124,7 +125,7 @@ with st.sidebar:
 # ─────────────────────────────────────────────
 # Tabs
 # ─────────────────────────────────────────────
-tab_estimator, tab_lookup = st.tabs(["📋 Estimator", "🔍 Film Lookup"])
+tab_estimator, tab_proposal, tab_lookup = st.tabs(["📋 Estimator", "📄 Proposal", "🔍 Film Lookup"])
 
 # ═════════════════════════════════════════════
 # TAB 1: ESTIMATOR
@@ -677,12 +678,148 @@ with tab_estimator:
         if summary_rows:
             st.dataframe(summary_rows, use_container_width=True)
 
+        # ── Persist results to session state for Proposal tab ──
+        st.session_state["section_results"] = section_results
+        st.session_state["active_job_sell"] = active_job_sell
+        st.session_state["caulking_lf"] = caulking_lf
+        st.session_state["caulking_cost"] = caulking_cost
+        st.session_state["equipment_rental"] = equipment_rental
+
     else:
         st.info("Upload a TintWiz worksheet PDF using the uploader above to get started.")
 
 
 # ═════════════════════════════════════════════
-# TAB 2: FILM LOOKUP
+# TAB 2: PROPOSAL GENERATOR
+# ═════════════════════════════════════════════
+with tab_proposal:
+
+    st.subheader("📄 Proposal Generator")
+    st.caption("Generate a professional, branded PDF proposal from the current estimate. Run the Estimator tab first.")
+
+    if not st.session_state.get("pdf_text") or "section_results" not in st.session_state:
+        st.info("Upload a TintWiz worksheet and run the Estimator first — then come back here to generate a proposal.")
+    else:
+        _client = st.session_state.get("client_info") or {}
+        _section_results = st.session_state.get("section_results", {})
+        _active_job_sell = st.session_state.get("active_job_sell", 0.0)
+        _caulking_lf = st.session_state.get("caulking_lf", 0.0)
+        _caulking_cost = st.session_state.get("caulking_cost", 0.0)
+        _equipment_rental = st.session_state.get("equipment_rental", 0.0)
+
+        st.markdown("#### Proposal Settings")
+        prop_col1, prop_col2 = st.columns(2)
+
+        with prop_col1:
+            import datetime as _dt
+            default_prop_num = f"ECWF-{_dt.date.today().strftime('%Y%m%d')}-001"
+            proposal_number = st.text_input(
+                "Proposal Number",
+                value=default_prop_num,
+                help="Unique identifier for this proposal."
+            )
+            valid_days = st.number_input(
+                "Valid For (days)",
+                min_value=7,
+                max_value=90,
+                value=30,
+                step=1,
+                help="Number of days this proposal remains valid."
+            )
+
+        with prop_col2:
+            scope_notes = st.text_area(
+                "Project Scope / Notes (optional)",
+                placeholder="e.g., Install solar control film on all south-facing windows in the living room and master bedroom to reduce heat and glare.",
+                height=100,
+                help="A brief description of the project scope shown at the top of the proposal."
+            )
+
+        with st.expander("⚙️ Customize Terms & Conditions (optional)"):
+            terms_notes = st.text_area(
+                "Terms & Conditions",
+                placeholder="Leave blank to use the default ECWF terms.",
+                height=120,
+                help="Override the default terms and conditions text."
+            )
+
+        st.divider()
+
+        # Preview the line items
+        st.markdown("#### Proposal Preview")
+        preview_rows = []
+        for sname, res in _section_results.items():
+            if res.get("error") or not res.get("is_active"):
+                continue
+            preview_rows.append({
+                "Room": sname,
+                "Film": res.get("film", ""),
+                "Sq Ft": res.get("sqft", 0),
+                "Price": f"${res.get('recommended_sell', 0.0):,.2f}",
+            })
+
+        if _caulking_lf > 0:
+            preview_rows.append({
+                "Room": "Perimeter Caulking",
+                "Film": "Safety Film Seal",
+                "Sq Ft": "—",
+                "Price": f"${_caulking_cost:,.2f}",
+            })
+        if _equipment_rental > 0:
+            preview_rows.append({
+                "Room": "Equipment Rental",
+                "Film": "Lift / Scaffold",
+                "Sq Ft": "—",
+                "Price": f"${_equipment_rental:,.2f}",
+            })
+
+        total_proposal = _active_job_sell + _caulking_cost + _equipment_rental
+        preview_rows.append({
+            "Room": "TOTAL",
+            "Film": "",
+            "Sq Ft": "",
+            "Price": f"${total_proposal:,.2f}",
+        })
+
+        st.dataframe(preview_rows, use_container_width=True)
+
+        st.divider()
+
+        if st.button("⬇️ Generate & Download PDF Proposal", type="primary", use_container_width=True):
+            import os as _os
+            logo_path = _os.path.join(_os.path.dirname(__file__), "ecwf_logo.png")
+            with st.spinner("Building your proposal PDF..."):
+                try:
+                    pdf_bytes = generate_proposal_pdf(
+                        client=_client,
+                        section_results=_section_results,
+                        active_job_sell=_active_job_sell,
+                        caulking_lf=_caulking_lf,
+                        caulking_cost=_caulking_cost,
+                        equipment_rental=_equipment_rental,
+                        proposal_number=proposal_number,
+                        valid_days=int(valid_days),
+                        scope_notes=scope_notes,
+                        terms_notes=terms_notes if 'terms_notes' in dir() else "",
+                        logo_path=logo_path,
+                    )
+                    client_name_safe = (_client.get("name") or "Proposal").replace(" ", "_")
+                    filename = f"ECWF_Proposal_{client_name_safe}_{proposal_number}.pdf"
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=pdf_bytes,
+                        file_name=filename,
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+                    st.success(f"✅ Proposal ready: {filename}")
+                except Exception as e:
+                    st.error(f"Error generating proposal: {e}")
+                    st.exception(e)
+
+
+# ═════════════════════════════════════════════
+# TAB 3: FILM LOOKUP
 # ═════════════════════════════════════════════
 with tab_lookup:
     st.subheader("🔍 Film Price Lookup")
