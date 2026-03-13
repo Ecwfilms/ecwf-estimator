@@ -101,6 +101,20 @@ def normalize_product_name(raw_name):
     if "twilight 10" in raw:
         return "Twilight 10"
 
+    # Edge Pristine series — MUST come before Huper Ceramic checks to avoid false matches
+    if "pristine" in raw:
+        if "80" in raw:
+            return "Edge Pristine 80"
+        if "70" in raw:
+            return "Edge Pristine 70"
+        if "50" in raw:
+            return "Edge Pristine 50"
+        if "40" in raw:
+            return "Edge Pristine 40"
+        if "30" in raw:
+            return "Edge Pristine 30"
+        return "Edge Pristine 40"
+
     # Huper Optik Ceramic series
     if "ceramic 70" in raw:
         return "Huper Ceramic 70"
@@ -153,9 +167,7 @@ def normalize_product_name(raw_name):
     if "coal alloy" in raw:
         return "Edge Coal Alloy"
 
-    # Edge Pristine Ceramic
-    if "pristine ceramic" in raw:
-        return "Edge Pristine Ceramic"
+    # (Edge Pristine already handled above)
 
     # Edge Safety / Security
     if "guardian" in raw and "12mil" in raw:

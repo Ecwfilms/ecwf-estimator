@@ -1,5 +1,5 @@
 # pricing_engine.py
-# East Coast Window Films — Pricing Engine v3
+# East Coast Window Films — Pricing Engine v4.3
 # Handles roll optimization, material cost, labor complexity scoring, and Go/No-Go logic.
 #
 # PRICING MODEL (Edge Dealer Store):
@@ -23,239 +23,319 @@ from typing import Any, Dict, List, Optional, Tuple
 # =============================================================================
 
 FILM_RATES: Dict[str, Dict[int, Dict[str, float]]] = {
-
-    # ── EDGE UltraView ──────────────────────────────────────────────────────
     "UltraView 5": {
-        48: {"btf_base": 5.87, "btf_fee": 0.505, "roll_100lf": 386.73},
-        60: {"btf_base": 6.88, "btf_fee": 0.505, "roll_100lf": 550.11},
-        72: {"btf_base": 7.50, "btf_fee": 0.505, "roll_100lf": 550.11},
+        48: {"btf_base": 3.37, "btf_fee": 0.505, "roll_100lf": 97.69},
+        60: {"btf_base": 6.08, "btf_fee": 0.505, "roll_100lf": 458.42},
+        72: {"btf_base": 6.80, "btf_fee": 0.505, "roll_100lf": 550.11},
     },
     "UltraView 15": {
-        48: {"btf_base": 5.87, "btf_fee": 0.505, "roll_100lf": 386.73},
-        60: {"btf_base": 6.88, "btf_fee": 0.505, "roll_100lf": 550.11},
-        72: {"btf_base": 7.50, "btf_fee": 0.505, "roll_100lf": 550.11},
+        48: {"btf_base": 3.37, "btf_fee": 0.505, "roll_100lf": 97.69},
+        60: {"btf_base": 6.08, "btf_fee": 0.505, "roll_100lf": 458.42},
+        72: {"btf_base": 6.80, "btf_fee": 0.505, "roll_100lf": 550.11},
     },
     "UltraView 20": {
-        48: {"btf_base": 5.87, "btf_fee": 0.505, "roll_100lf": 386.73},
-        60: {"btf_base": 6.88, "btf_fee": 0.505, "roll_100lf": 550.11},
-        72: {"btf_base": 7.50, "btf_fee": 0.505, "roll_100lf": 550.11},
+        48: {"btf_base": 3.37, "btf_fee": 0.505, "roll_100lf": 97.69},
+        60: {"btf_base": 6.08, "btf_fee": 0.505, "roll_100lf": 458.42},
+        72: {"btf_base": 6.80, "btf_fee": 0.505, "roll_100lf": 550.11},
     },
     "UltraView 25": {
-        48: {"btf_base": 5.87, "btf_fee": 0.505, "roll_100lf": 386.73},
-        60: {"btf_base": 6.88, "btf_fee": 0.505, "roll_100lf": 550.11},
-        72: {"btf_base": 7.50, "btf_fee": 0.505, "roll_100lf": 550.11},
+        48: {"btf_base": 3.37, "btf_fee": 0.505, "roll_100lf": 97.69},
+        60: {"btf_base": 6.08, "btf_fee": 0.505, "roll_100lf": 458.42},
+        72: {"btf_base": 6.80, "btf_fee": 0.505, "roll_100lf": 550.11},
     },
     "UltraView 35": {
-        48: {"btf_base": 5.87, "btf_fee": 0.505, "roll_100lf": 386.73},
-        60: {"btf_base": 6.88, "btf_fee": 0.505, "roll_100lf": 550.11},
-        72: {"btf_base": 7.50, "btf_fee": 0.505, "roll_100lf": 550.11},
+        48: {"btf_base": 3.37, "btf_fee": 0.505, "roll_100lf": 97.69},
+        60: {"btf_base": 6.08, "btf_fee": 0.505, "roll_100lf": 458.42},
+        72: {"btf_base": 6.80, "btf_fee": 0.505, "roll_100lf": 550.11},
     },
-
-    # ── EDGE Reform ─────────────────────────────────────────────────────────
-    "Edge Reform": {
-        48: {"btf_base": 10.82, "btf_fee": 0.505, "roll_100lf": 1082.46},
-        60: {"btf_base": 12.02, "btf_fee": 0.505, "roll_100lf": None},
+    "Nature 10": {
+        48: {"btf_base": 6.90, "btf_fee": 0.505, "roll_100lf": 638.35},
+        60: {"btf_base": 7.65, "btf_fee": 0.505, "roll_100lf": 718.35},
+        72: {"btf_base": 8.65, "btf_fee": 0.505, "roll_100lf": 818.35},
     },
-
-    # ── EDGE Coal Alloy ──────────────────────────────────────────────────────
+    "Nature 20": {
+        48: {"btf_base": 6.90, "btf_fee": 0.505, "roll_100lf": 638.35},
+        60: {"btf_base": 7.65, "btf_fee": 0.505, "roll_100lf": 718.35},
+        72: {"btf_base": 8.65, "btf_fee": 0.505, "roll_100lf": 818.35},
+    },
+    "Nature 30": {
+        48: {"btf_base": 6.90, "btf_fee": 0.505, "roll_100lf": 638.35},
+        60: {"btf_base": 7.65, "btf_fee": 0.505, "roll_100lf": 718.35},
+        72: {"btf_base": 8.65, "btf_fee": 0.505, "roll_100lf": 818.35},
+    },
+    "Cool Alloy 20": {
+        48: {"btf_base": 5.07, "btf_fee": 0.505, "roll_100lf": 501.23},
+        60: {"btf_base": 5.78, "btf_fee": 0.505, "roll_100lf": 559.76},
+        72: {"btf_base": 7.09, "btf_fee": 0.505, "roll_100lf": 627.95},
+    },
+    "Cool Alloy 35": {
+        48: {"btf_base": 5.07, "btf_fee": 0.505, "roll_100lf": 501.23},
+        60: {"btf_base": 5.78, "btf_fee": 0.505, "roll_100lf": 559.76},
+        72: {"btf_base": 7.09, "btf_fee": 0.505, "roll_100lf": 627.95},
+    },
+    "Cool Alloy 60": {
+        48: {"btf_base": 5.07, "btf_fee": 0.505, "roll_100lf": 501.23},
+        60: {"btf_base": 5.78, "btf_fee": 0.505, "roll_100lf": 559.76},
+        72: {"btf_base": 7.09, "btf_fee": 0.505, "roll_100lf": 627.95},
+    },
     "Edge Coal Alloy": {
-        48: {"btf_base": 5.60, "btf_fee": 0.505, "roll_100lf": 559.76},
-        60: {"btf_base": 6.28, "btf_fee": 0.505, "roll_100lf": 627.95},
-        72: {"btf_base": 7.53, "btf_fee": 0.505, "roll_100lf": 752.73},
+        48: {"btf_base": 5.07, "btf_fee": 0.505, "roll_100lf": 501.23},
+        60: {"btf_base": 5.78, "btf_fee": 0.505, "roll_100lf": 559.76},
+        72: {"btf_base": 7.09, "btf_fee": 0.505, "roll_100lf": 627.95},
     },
-
-    # ── EDGE Silver ──────────────────────────────────────────────────────────
+    "Silver 20": {
+        48: {"btf_base": 3.66, "btf_fee": 0.505, "roll_100lf": 380.86},
+        60: {"btf_base": 4.91, "btf_fee": 0.505, "roll_100lf": 460.86},
+        72: {"btf_base": 6.19, "btf_fee": 0.505, "roll_100lf": 540.86},
+    },
+    "Silver 30": {
+        48: {"btf_base": 3.66, "btf_fee": 0.505, "roll_100lf": 380.86},
+        60: {"btf_base": 4.91, "btf_fee": 0.505, "roll_100lf": 460.86},
+        72: {"btf_base": 6.19, "btf_fee": 0.505, "roll_100lf": 540.86},
+    },
+    "Silver 40": {
+        48: {"btf_base": 3.66, "btf_fee": 0.505, "roll_100lf": 380.86},
+        60: {"btf_base": 4.91, "btf_fee": 0.505, "roll_100lf": 460.86},
+        72: {"btf_base": 6.19, "btf_fee": 0.505, "roll_100lf": 540.86},
+    },
     "Edge Silver": {
-        48: {"btf_base": 3.81, "btf_fee": 0.505, "roll_100lf": 380.86},
-        60: {"btf_base": 4.33, "btf_fee": 0.505, "roll_100lf": 432.56},
+        48: {"btf_base": 3.66, "btf_fee": 0.505, "roll_100lf": 380.86},
+        60: {"btf_base": 4.91, "btf_fee": 0.505, "roll_100lf": 460.86},
+        72: {"btf_base": 6.19, "btf_fee": 0.505, "roll_100lf": 540.86},
     },
-
-    # ── EDGE Bronze ──────────────────────────────────────────────────────────
+    "Bronze 20": {
+        48: {"btf_base": 5.81, "btf_fee": 0.505, "roll_100lf": 563.03},
+        60: {"btf_base": 7.62, "btf_fee": 0.505, "roll_100lf": 635.91},
+        72: {"btf_base": 9.63, "btf_fee": 0.505, "roll_100lf": 762.86},
+    },
+    "Bronze 35": {
+        48: {"btf_base": 5.81, "btf_fee": 0.505, "roll_100lf": 563.03},
+        60: {"btf_base": 7.62, "btf_fee": 0.505, "roll_100lf": 635.91},
+        72: {"btf_base": 9.63, "btf_fee": 0.505, "roll_100lf": 762.86},
+    },
     "Edge Bronze": {
-        48: {"btf_base": 5.63, "btf_fee": 0.505, "roll_100lf": 563.03},
-        60: {"btf_base": 6.36, "btf_fee": 0.505, "roll_100lf": 635.91},
-        72: {"btf_base": 7.63, "btf_fee": 0.505, "roll_100lf": 762.86},
+        48: {"btf_base": 5.81, "btf_fee": 0.505, "roll_100lf": 563.03},
+        60: {"btf_base": 7.62, "btf_fee": 0.505, "roll_100lf": 635.91},
+        72: {"btf_base": 9.63, "btf_fee": 0.505, "roll_100lf": 762.86},
     },
-
-    # ── EDGE Pristine Ceramic ────────────────────────────────────────────────
-    "Edge Pristine Ceramic": {
-        48: {"btf_base": 9.36, "btf_fee": 0.505, "roll_100lf": 935.63},
-        60: {"btf_base": 11.70, "btf_fee": 0.505, "roll_100lf": 1169.55},
-        72: {"btf_base": 14.63, "btf_fee": 0.505, "roll_100lf": 1463.45},
+    "Edge Pristine 30": {
+        48: {"btf_base": 12.18, "btf_fee": 0.505, "roll_100lf": 1169.55},
+        60: {"btf_base": 14.71, "btf_fee": 0.505, "roll_100lf": 1403.46},
+        72: {"btf_base": 16.03, "btf_fee": 0.505, "roll_100lf": 1637.37},
     },
-
-    # ── EDGE Safety / Security (full-roll only) ──────────────────────────────
-    # These films cannot be ordered by the foot — 50 LF or 100 LF rolls only.
+    "Edge Pristine 40": {
+        48: {"btf_base": 12.18, "btf_fee": 0.505, "roll_100lf": 1169.55},
+        60: {"btf_base": 14.71, "btf_fee": 0.505, "roll_100lf": 1403.46},
+        72: {"btf_base": 16.03, "btf_fee": 0.505, "roll_100lf": 1637.37},
+    },
+    "Edge Pristine 50": {
+        48: {"btf_base": 12.18, "btf_fee": 0.505, "roll_100lf": 1169.55},
+        60: {"btf_base": 14.71, "btf_fee": 0.505, "roll_100lf": 1403.46},
+        72: {"btf_base": 16.03, "btf_fee": 0.505, "roll_100lf": 1637.37},
+    },
+    "Edge Pristine 70": {
+        48: {"btf_base": 12.18, "btf_fee": 0.505, "roll_100lf": 1169.55},
+        60: {"btf_base": 14.71, "btf_fee": 0.505, "roll_100lf": 1403.46},
+        72: {"btf_base": 16.03, "btf_fee": 0.505, "roll_100lf": 1637.37},
+    },
+    "Edge Pristine 80": {
+        48: {"btf_base": 12.18, "btf_fee": 0.505, "roll_100lf": 1169.55},
+        60: {"btf_base": 14.71, "btf_fee": 0.505, "roll_100lf": 1403.46},
+        72: {"btf_base": 16.03, "btf_fee": 0.505, "roll_100lf": 1637.37},
+    },
     "Guardian 4mil": {
-        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 434.91, "roll_50lf": None},
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 481.17, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 579.90, "roll_50lf": None},
+        48: {"btf_base": 0.59, "btf_fee": 0.505, "roll_100lf": 96.53},
+        60: {"btf_base": 0.91, "btf_fee": 0.505, "roll_100lf": 120.86},
+        72: {"btf_base": 1.25, "btf_fee": 0.505, "roll_100lf": 145.19},
     },
     "Guardian 8mil": {
-        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 579.40, "roll_50lf": None},
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1082.46, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 873.30, "roll_50lf": None},
+        48: {"btf_base": 1.25, "btf_fee": 0.505, "roll_100lf": 145.36},
+        60: {"btf_base": 1.69, "btf_fee": 0.505, "roll_100lf": 181.70},
+        72: {"btf_base": 1.69, "btf_fee": 0.505, "roll_100lf": 218.04},
+    },
+    "Guardian 8mil Silver 20": {
+        48: {"btf_base": 2.76, "btf_fee": 0.505, "roll_100lf": 272.44},
+        60: {"btf_base": 3.57, "btf_fee": 0.505, "roll_100lf": 340.55},
+        72: {"btf_base": 4.38, "btf_fee": 0.505, "roll_100lf": 408.66},
     },
     "Guardian 12mil": {
-        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1096.33, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1312.95, "roll_50lf": None},
+        48: {"btf_base": 1.69, "btf_fee": 0.505, "roll_100lf": 181.70},
+        60: {"btf_base": 1.69, "btf_fee": 0.505, "roll_100lf": 218.04},
+        72: {"btf_base": 1.69, "btf_fee": 0.505, "roll_100lf": 254.38},
     },
     "CS 4mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 787.36, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None, "roll_50lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 651.98},
+        72: {"btf_base": 9.52, "btf_fee": 0.0, "roll_100lf": 782.36},
     },
     "CS 8mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 983.79, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1180.54, "roll_50lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 983.79},
+        72: {"btf_base": 12.84, "btf_fee": 0.0, "roll_100lf": 1180.54},
     },
     "CS 14mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1416.67, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1724.24, "roll_50lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1416.67},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1724.24},
     },
     "Shield 35 Neutral 8mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1350.00, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1620.61, "roll_50lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1312.95},
+        72: {"btf_base": 16.51, "btf_fee": 0.0, "roll_100lf": 1620.61},
     },
-
-    # ── EDGE Decorative ──────────────────────────────────────────────────────
     "Frost": {
-        48: {"btf_base": 3.81, "btf_fee": 0.505, "roll_100lf": 380.84},
-        60: {"btf_base": 4.40, "btf_fee": 0.505, "roll_100lf": 439.60},
-        72: {"btf_base": 5.28, "btf_fee": 0.505, "roll_100lf": 527.77},
+        48: {"btf_base": 4.64, "btf_fee": 0.505, "roll_100lf": 439.00},
+        60: {"btf_base": 5.51, "btf_fee": 0.505, "roll_100lf": 550.11},
+        72: {"btf_base": 6.38, "btf_fee": 0.505, "roll_100lf": 327.77},
     },
     "Blackout": {
-        48: {"btf_base": 4.16, "btf_fee": 0.505, "roll_100lf": 416.10},
-        60: {"btf_base": 4.83, "btf_fee": 0.505, "roll_100lf": 483.12},
+        48: {"btf_base": 4.16, "btf_fee": 0.505, "roll_100lf": 451.12},
+        60: {"btf_base": 5.51, "btf_fee": 0.505, "roll_100lf": 451.12},
+        72: {"btf_base": 1.05, "btf_fee": 0.505, "roll_100lf": 451.12},
     },
     "Whiteout": {
-        48: {"btf_base": 4.58, "btf_fee": 0.505, "roll_100lf": 458.42},
-        60: {"btf_base": 5.33, "btf_fee": 0.505, "roll_100lf": 533.11},
+        48: {"btf_base": 6.58, "btf_fee": 0.505, "roll_100lf": 458.40},
+        60: {"btf_base": 7.03, "btf_fee": 0.505, "roll_100lf": 550.11},
     },
-
-    # ── EDGE Anti-Graffiti ───────────────────────────────────────────────────
     "Clear Defense 4mil": {
-        48: {"btf_base": 4.35, "btf_fee": 0.505, "roll_100lf": 434.91},
-        60: {"btf_base": 4.83, "btf_fee": 0.505, "roll_100lf": 483.12},
-        72: {"btf_base": 5.76, "btf_fee": 0.505, "roll_100lf": 576.08},
+        48: {"btf_base": 0.72, "btf_fee": 0.505, "roll_100lf": 101.21},
+        60: {"btf_base": 1.03, "btf_fee": 0.505, "roll_100lf": 126.51},
+        72: {"btf_base": 1.03, "btf_fee": 0.505, "roll_100lf": 151.81},
     },
     "Clear Defense 6mil": {
-        48: {"btf_base": 5.62, "btf_fee": 0.505, "roll_100lf": 561.86},
-        60: {"btf_base": 6.30, "btf_fee": 0.505, "roll_100lf": 630.03},
-        72: {"btf_base": 7.50, "btf_fee": 0.505, "roll_100lf": 750.03},
+        48: {"btf_base": 0.83, "btf_fee": 0.505, "roll_100lf": 110.97},
+        60: {"btf_base": 1.17, "btf_fee": 0.505, "roll_100lf": 138.71},
+        72: {"btf_base": 1.17, "btf_fee": 0.505, "roll_100lf": 166.45},
     },
-
-    # ── HUPER OPTIK ──────────────────────────────────────────────────────────
     "Huper Select Drei": {
-        36: {"btf_base": 22.47, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 31.71, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 36.11, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 42.93, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 22.47, "btf_fee": 0.505, "roll_100lf": 2971.12},
+        60: {"btf_base": 31.21, "btf_fee": 0.505, "roll_100lf": 3411.21},
+        72: {"btf_base": 42.43, "btf_fee": 0.505, "roll_100lf": 4092.45},
     },
     "Huper Select Sech": {
-        36: {"btf_base": 18.87, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 26.40, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 30.12, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 35.74, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 18.17, "btf_fee": 0.505, "roll_100lf": 2440.24},
+        60: {"btf_base": 29.62, "btf_fee": 0.505, "roll_100lf": 2811.63},
+        72: {"btf_base": 35.24, "btf_fee": 0.505, "roll_100lf": 1373.95},
     },
     "Huper Ceramic 20": {
-        36: {"btf_base": 7.23, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 10.10, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 11.53, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 13.56, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 11.52, "btf_fee": 0.505, "roll_100lf": 1457.62},
+        60: {"btf_base": 16.08, "btf_fee": 0.505, "roll_100lf": 1670.68},
+        72: {"btf_base": 18.21, "btf_fee": 0.505, "roll_100lf": 2004.81},
     },
     "Huper Ceramic 30": {
-        36: {"btf_base": 7.23, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 10.10, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 11.53, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 13.56, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 11.52, "btf_fee": 0.505, "roll_100lf": 1457.62},
+        60: {"btf_base": 16.08, "btf_fee": 0.505, "roll_100lf": 1670.68},
+        72: {"btf_base": 18.21, "btf_fee": 0.505, "roll_100lf": 2004.81},
     },
     "Huper Ceramic 40": {
-        36: {"btf_base": 7.23, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 10.10, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 11.53, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 22.05, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 11.52, "btf_fee": 0.505, "roll_100lf": 1457.62},
+        60: {"btf_base": 16.08, "btf_fee": 0.505, "roll_100lf": 1670.68},
+        72: {"btf_base": 18.21, "btf_fee": 0.505, "roll_100lf": 2004.81},
     },
     "Huper Ceramic 50": {
-        36: {"btf_base": 7.23, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 10.10, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 11.53, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 13.56, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 8.44, "btf_fee": 0.505, "roll_100lf": 1156.10},
+        60: {"btf_base": 13.06, "btf_fee": 0.505, "roll_100lf": 1156.10},
+        72: {"btf_base": 13.06, "btf_fee": 0.505, "roll_100lf": 1388.94},
     },
     "Huper Ceramic 60": {
-        36: {"btf_base": 7.23, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 10.10, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 11.53, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 13.56, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 8.44, "btf_fee": 0.505, "roll_100lf": 1156.10},
+        60: {"btf_base": 13.06, "btf_fee": 0.505, "roll_100lf": 1156.10},
+        72: {"btf_base": 13.06, "btf_fee": 0.505, "roll_100lf": 1388.94},
     },
     "Huper Ceramic 70": {
-        36: {"btf_base": 7.23, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 10.10, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 11.53, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 13.56, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 23.05, "btf_fee": 0.505, "roll_100lf": 2631.17},
+        60: {"btf_base": 28.81, "btf_fee": 0.505, "roll_100lf": 2811.63},
+        72: {"btf_base": 29.62, "btf_fee": 0.505, "roll_100lf": None},
+    },
+    "Huper Ceramic 35": {
+        40: {"btf_base": 6.73, "btf_fee": 0.505, "roll_100lf": 869.09},
+        60: {"btf_base": 10.19, "btf_fee": 0.505, "roll_100lf": 870.25},
+        72: {"btf_base": 10.23, "btf_fee": 0.505, "roll_100lf": 1044.31},
+    },
+    "Huper Ceramic 45": {
+        40: {"btf_base": 6.73, "btf_fee": 0.505, "roll_100lf": 869.09},
+        60: {"btf_base": 10.19, "btf_fee": 0.505, "roll_100lf": 870.25},
+        72: {"btf_base": 10.23, "btf_fee": 0.505, "roll_100lf": 1044.31},
+    },
+    "Huper KLAR 85": {
+        40: {"btf_base": 16.20, "btf_fee": 0.505, "roll_100lf": 1723.06},
+        60: {"btf_base": 18.73, "btf_fee": 0.505, "roll_100lf": 1915.17},
     },
     "Huper Fusion 10": {
-        36: {"btf_base": 5.67, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 7.28, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 8.12, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 9.34, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 5.17, "btf_fee": 0.505, "roll_100lf": 611.93},
+        60: {"btf_base": 6.78, "btf_fee": 0.505, "roll_100lf": 611.93},
+        72: {"btf_base": 7.62, "btf_fee": 0.505, "roll_100lf": 734.31},
     },
     "Huper Fusion 20": {
-        36: {"btf_base": 5.67, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 7.28, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 8.12, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 9.34, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 5.17, "btf_fee": 0.505, "roll_100lf": 611.93},
+        60: {"btf_base": 6.78, "btf_fee": 0.505, "roll_100lf": 611.93},
+        72: {"btf_base": 7.62, "btf_fee": 0.505, "roll_100lf": 734.31},
     },
     "Huper Fusion 28": {
-        36: {"btf_base": 5.67, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 7.28, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 8.12, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 9.34, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 5.17, "btf_fee": 0.505, "roll_100lf": 611.93},
+        60: {"btf_base": 6.78, "btf_fee": 0.505, "roll_100lf": 611.93},
+        72: {"btf_base": 7.62, "btf_fee": 0.505, "roll_100lf": 734.31},
     },
     "Huper Bronze 25": {
-        36: {"btf_base": 6.65, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 8.66, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 9.74, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 11.29, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 6.13, "btf_fee": 0.505, "roll_100lf": 665.94},
+        60: {"btf_base": 8.16, "btf_fee": 0.505, "roll_100lf": 774.22},
+        72: {"btf_base": 9.24, "btf_fee": 0.505, "roll_100lf": 929.06},
     },
     "Huper Bronze 35": {
-        36: {"btf_base": 6.65, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 8.66, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 9.74, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 11.29, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 6.13, "btf_fee": 0.505, "roll_100lf": 665.94},
+        60: {"btf_base": 8.16, "btf_fee": 0.505, "roll_100lf": 774.22},
+        72: {"btf_base": 9.24, "btf_fee": 0.505, "roll_100lf": 929.06},
     },
     "Huper Silver 18": {
-        36: {"btf_base": 5.21, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 6.75, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 7.36, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 8.43, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 4.71, "btf_fee": 0.505, "roll_100lf": 475.01},
+        60: {"btf_base": 6.25, "btf_fee": 0.505, "roll_100lf": 535.55},
+        72: {"btf_base": 8.13, "btf_fee": 0.505, "roll_100lf": 642.66},
     },
     "Huper Silver 30": {
-        36: {"btf_base": 5.21, "btf_fee": 0.505, "roll_100lf": None},
-        48: {"btf_base": 6.75, "btf_fee": 0.505, "roll_100lf": None},
-        60: {"btf_base": 7.36, "btf_fee": 0.505, "roll_100lf": None},
-        72: {"btf_base": 8.43, "btf_fee": 0.505, "roll_100lf": None},
+        40: {"btf_base": 4.71, "btf_fee": 0.505, "roll_100lf": 475.01},
+        60: {"btf_base": 6.25, "btf_fee": 0.505, "roll_100lf": 535.55},
+        72: {"btf_base": 8.13, "btf_fee": 0.505, "roll_100lf": 642.66},
     },
     "Huper ClearShield 4mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 651.98},
+        72: {"btf_base": 9.52, "btf_fee": 0.0, "roll_100lf": 782.36},
     },
     "Huper ClearShield 8mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 983.79},
+        72: {"btf_base": 12.84, "btf_fee": 0.0, "roll_100lf": 1180.54},
     },
     "Huper ClearShield 14mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1416.67},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1724.24},
     },
     "Huper Shield 35 Neutral 8mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": None},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1312.95},
+        72: {"btf_base": 16.51, "btf_fee": 0.0, "roll_100lf": 1620.61},
     },
-
-    # ── SOLYX / Decorative Films (by Solyx) ─────────────────────────────────
-    # SXF Series — Functional Blockout Films (60" only, by the linear foot)
-    # Confirmed: Solyx sells by the foot. $9.36/LF at 60". No processing fee.
-    # Full roll (100 LF) = $936.00. By-the-foot available.
+    "Huper Decorative Frost": {
+        40: {"btf_base": 1.18, "btf_fee": 0.505, "roll_100lf": 367.90},
+        60: {"btf_base": 5.90, "btf_fee": 0.505, "roll_100lf": 459.88},
+        72: {"btf_base": 7.04, "btf_fee": 0.505, "roll_100lf": 551.84},
+    },
+    "Huper Matte Blackout": {
+        40: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 442.41},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 553.02},
+        72: {"btf_base": 7.03, "btf_fee": 0.505, "roll_100lf": None},
+    },
+    "Huper Whiteout": {
+        40: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 442.41},
+        60: {"btf_base": 5.92, "btf_fee": 0.505, "roll_100lf": 553.02},
+        72: {"btf_base": 7.03, "btf_fee": 0.505, "roll_100lf": None},
+    },
+    "Huper Dusted Crystal": {
+        40: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 936.04},
+        60: {"btf_base": 10.86, "btf_fee": 0.505, "roll_100lf": 1170.06},
+        72: {"btf_base": 13.20, "btf_fee": 0.505, "roll_100lf": None},
+    },
+    "Huper Xtreme Pro": {
+        40: {"btf_base": 0.31, "btf_fee": 0.505, "roll_100lf": 269.00},
+        60: {"btf_base": 4.19, "btf_fee": 0.505, "roll_100lf": None},
+    },
+    "Huper Xtreme Ceramic": {
+        40: {"btf_base": 1.27, "btf_fee": 0.505, "roll_100lf": 589.00},
+        60: {"btf_base": 7.39, "btf_fee": 0.505, "roll_100lf": None},
+    },
     "SXF-5050": {
         60: {"btf_base": 9.36, "btf_fee": 0.0, "roll_100lf": 936.00},
     },
@@ -268,30 +348,24 @@ FILM_RATES: Dict[str, Dict[int, Dict[str, float]]] = {
     "SXF-5080": {
         60: {"btf_base": 9.36, "btf_fee": 0.0, "roll_100lf": 936.00},
     },
-    # SXB Series — Sand Blast (48" only, 100 LF rolls, by the foot)
     "SXB-001": {
         48: {"btf_base": 12.11, "btf_fee": 0.0, "roll_100lf": 1211.25},
     },
     "SXB-002": {
         48: {"btf_base": 12.11, "btf_fee": 0.0, "roll_100lf": 1211.25},
     },
-    # SXO Series — Frosted & Design Free (48" only, 150 LF rolls)
     "SXO Colored Frosted": {
         48: {"btf_base": 7.81, "btf_fee": 0.0, "roll_100lf": None, "roll_150lf": 1171.80},
     },
-    # SXP Series — Frosted & Design Free (60" only, 100 LF rolls)
     "SXP Colored Frosted": {
         60: {"btf_base": 10.26, "btf_fee": 0.0, "roll_100lf": 1025.85},
     },
-    # SXG Series — Geometric (60" wide, 100 LF rolls)
     "SXG Geometric": {
         60: {"btf_base": 10.26, "btf_fee": 0.0, "roll_100lf": 1025.85},
     },
-    # SXN Series — Organic (60" wide, 100 LF rolls)
     "SXN Organic": {
         60: {"btf_base": 10.26, "btf_fee": 0.0, "roll_100lf": 1025.85},
     },
-    # UltraSafe Safety Films (full-roll only)
     "UltraSafe 2mil": {
         60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 318.15, "roll_50lf": None},
     },
@@ -305,7 +379,6 @@ FILM_RATES: Dict[str, Dict[int, Dict[str, float]]] = {
     "UltraSafe White Matte": {
         60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 813.75, "roll_50lf": None},
     },
-    # UltraCool Solar Films (by the foot)
     "UltraCool Silver 15": {
         60: {"btf_base": 4.01, "btf_fee": 0.0, "roll_100lf": 401.10},
     },
@@ -324,32 +397,25 @@ FILM_RATES: Dict[str, Dict[int, Dict[str, float]]] = {
     "UltraCool Solar Bronze": {
         60: {"btf_base": 10.27, "btf_fee": 0.0, "roll_100lf": 1026.90},
     },
-    # Bird Safety Films (full-roll only)
     "BSF Solar Bird Safety": {
         60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 2084.25, "roll_50lf": None},
         72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 2501.10, "roll_50lf": None},
     },
-    # Sea Turtle Protection Film
     "SX-STPF Sea Turtle": {
         60: {"btf_base": 7.72, "btf_fee": 0.0, "roll_100lf": 756.32},
     },
-    # SGC Simulated Glass (59" wide, 95 LF rolls)
     "SGC Simulated Glass": {
         59: {"btf_base": 22.84, "btf_fee": 0.0, "roll_100lf": 2283.75},
     },
-    # SXI Gradient Fading (60" or 71" wide, 98-100 LF rolls)
     "SXI Gradient": {
         60: {"btf_base": 13.18, "btf_fee": 0.0, "roll_100lf": 1317.75},
         71: {"btf_base": 29.60, "btf_fee": 0.0, "roll_100lf": 2900.75},
     },
-    # Chalkboard Film
     "SX-7876 Chalkboard": {
         36: {"btf_base": 5.75, "btf_fee": 0.0, "roll_100lf": None},
         48: {"btf_base": 9.61, "btf_fee": 0.0, "roll_100lf": None},
         72: {"btf_base": 11.66, "btf_fee": 0.0, "roll_100lf": None},
     },
-
-    # ── ASWF Twilight (full-roll only: 50 LF or 100 LF) ─────────────────────
     "Twilight 35": {
         48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 800.00, "roll_50lf": 440.00},
         60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1000.00, "roll_50lf": 550.00},
@@ -384,6 +450,7 @@ PRICE_FLOORS_PER_SQFT: Dict[str, float] = {
     "aurora":        12.00,
     "huper":         12.00,
     "edge pristine": 12.00,
+    "pristine":      12.00,
     "safety":         8.00,
     "guardian":       8.00,
     "decorative":     6.00,
@@ -420,15 +487,16 @@ SUPPLIER_FREE_SHIPPING: Dict[str, float] = {
 # Supplier keyword mapping — used to identify which supplier a film belongs to
 SUPPLIER_KEYWORDS: Dict[str, List[str]] = {
     "Edge": [
-        "ultraview", "reform", "coal alloy", "silver", "bronze", "fusion",
-        "pristine ceramic", "x series", "guardian", "cs 4mil", "cs 8mil",
-        "cs 14mil", "shield 35", "decorative frost", "matte blackout",
-        "whiteout", "dusted crystal", "xtreme", "clearshield",
+        "ultraview", "reform", "cool alloy", "coal alloy", "silver", "bronze",
+        "nature", "pristine", "x series", "guardian", "cs 4mil", "cs 8mil",
+        "cs 14mil", "shield 35", "frost", "blackout", "whiteout",
+        "clear defense",
     ],
     "Huper Optik": [
-        "klar", "ceramic", "multi-layer", "single layer", "dark ceramic",
-        "select sech", "select drei", "traditional bronze", "traditional silver",
-        "xtreme pro", "xtreme ceramic",
+        "klar", "huper ceramic", "multi-layer", "single layer", "dark ceramic",
+        "select sech", "select drei", "huper fusion", "huper bronze", "huper silver",
+        "huper whiteout", "huper blackout", "dusted crystal", "clearshield",
+        "xtreme pro", "xtreme ceramic", "huper",
     ],
     "Solyx": [
         "sxf", "sxo", "sxp", "sxb", "sxg", "sxn", "sxi", "sgc", "sx-stpf",
