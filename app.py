@@ -248,53 +248,49 @@ with tab_estimator:
 
         job_needs_caulking = any(needs_caulking(f) for f in active_films_all)
 
-        # ── Additional Line Items ────────────────
-        st.subheader("🔧 Additional Line Items")
+        # ── Caulking (safety films only) ─────────
+        if job_needs_caulking:
+            caulking_lf = st.number_input(
+                "🛡️ Caulking (Linear Feet)",
+                min_value=0.0,
+                value=0.0,
+                step=1.0,
+                help="Required for safety/security films 8mil and above. Charged at $3.00/LF. "
+                     "Measure the perimeter of each window getting safety film."
+            )
+            caulking_cost = calculate_caulking_cost(caulking_lf)
+            if caulking_lf > 0:
+                st.caption(f"Caulking: {caulking_lf:.0f} LF × $3.00 = ${caulking_cost:.2f}")
+            else:
+                st.caption("Safety film detected — enter caulking linear feet above.")
+        else:
+            caulking_lf = 0.0
+            caulking_cost = 0.0
 
-        add_col1, add_col2, add_col3 = st.columns(3)
-
-        with add_col1:
-            if job_needs_caulking:
-                caulking_lf = st.number_input(
-                    "Caulking (Linear Feet)",
+        # ── Rare Options (collapsed by default) ──
+        with st.expander("⚙️ Rare Options — Equipment Rental / Exterior Install"):
+            rare_col1, rare_col2 = st.columns(2)
+            with rare_col1:
+                equipment_rental = st.number_input(
+                    "Equipment Rental ($)",
                     min_value=0.0,
                     value=0.0,
-                    step=1.0,
-                    help="Required for safety/security films 8mil and above. Charged at $3.00/LF. "
-                         "Measure the perimeter of each window getting safety film."
+                    step=50.0,
+                    help="Lift, scaffold, or other equipment rental cost. Added directly to total job cost."
                 )
-                caulking_cost = calculate_caulking_cost(caulking_lf)
-                if caulking_lf > 0:
-                    st.caption(f"Caulking: {caulking_lf:.0f} LF × $3.00 = **${caulking_cost:.2f}**")
-                else:
-                    st.caption("🛡️ Safety film detected — enter caulking LF above.")
-            else:
-                caulking_lf = 0.0
-                caulking_cost = 0.0
-                st.caption("Caulking not applicable for this job's film selection.")
-
-        with add_col2:
-            equipment_rental = st.number_input(
-                "Equipment Rental ($)",
-                min_value=0.0,
-                value=0.0,
-                step=50.0,
-                help="Lift, scaffold, or other equipment rental cost for this job. Added directly to total job cost."
-            )
-            if equipment_rental > 0:
-                st.caption(f"Equipment rental: **${equipment_rental:,.2f}**")
-
-        with add_col3:
-            exterior_premium_pct = st.number_input(
-                "Exterior Install Premium (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=0.0,
-                step=5.0,
-                help="Percentage markup added to the recommended sell price for exterior installations. e.g., 25 adds 25% to the sell price."
-            )
-            if exterior_premium_pct > 0:
-                st.caption(f"Exterior premium: **{exterior_premium_pct:.0f}%** added to sell price")
+                if equipment_rental > 0:
+                    st.caption(f"Equipment rental: ${equipment_rental:,.2f}")
+            with rare_col2:
+                exterior_premium_pct = st.number_input(
+                    "Exterior Install Premium (%)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=0.0,
+                    step=5.0,
+                    help="Percentage markup for exterior installations. e.g., 25 adds 25% to the sell price."
+                )
+                if exterior_premium_pct > 0:
+                    st.caption(f"Exterior premium: {exterior_premium_pct:.0f}% added to sell price")
 
         st.divider()
 
@@ -691,21 +687,21 @@ with tab_estimator:
 with tab_lookup:
     st.subheader("🔍 Film Price Lookup")
     st.caption(
-        "Search by film name, code, or enter dimensions to get an instant cost. "
-        "Examples: **Huper Ceramic 40**, **SXF-5050**, **60x25 Ceramic 40**, **Guardian 8mil**"
+        "Search by film name or code to see wholesale rates. "
+        "Add dimensions to get the material cost for a specific cut. "
+        "Examples: UltraView 15 — SXF-5050 — Guardian 8mil — 60x25 UltraView 15"
     )
 
     # Build a flat list of all films
     all_film_names = sorted(FILM_RATES.keys())
 
     search_query = st.text_input(
-        "Search film — name, code, or dimensions (e.g. 60x25 Huper Ceramic 40)",
-        placeholder="e.g., Ceramic 40  |  Guardian 8mil  |  60x25 Ceramic 40  |  SXF-5050",
-        help="Type any part of the film name, product code, or enter WxH dimensions before the film name."
+        "Film name or WxH film (e.g. 60x25 UltraView 15)",
+        placeholder="e.g., UltraView 15   or   60x25 UltraView 15   or   Guardian 8mil",
+        help="Type any part of the film name. Optionally prefix with dimensions (width x height in inches) to get the cost of that specific piece."
     )
 
-    # ── Parse dimension prefix from query ──
-    # Supports formats: "60x25 Ceramic 40", "60 x 25 ceramic 40", "60×25 ceramic 40"
+    # ── Parse optional dimension prefix ──
     import re as _re
     dim_match = _re.match(
         r"^\s*(\d+)\s*[xX×]\s*(\d+)\s+(.*)",
@@ -731,8 +727,8 @@ with tab_lookup:
         st.warning(f"No films found matching '{film_search_term}'. Try a different search term.")
     else:
         if not (parsed_width and parsed_height):
-            # Standard table view
-            st.caption(f"Showing {len(matches)} film(s).")
+            # ── Standard rate table (no dimensions entered) ──
+            st.caption(f"Showing {len(matches)} film(s). Add dimensions to get cost for a specific cut.")
 
             lookup_rows = []
             for film_name in matches:
@@ -744,23 +740,14 @@ with tab_lookup:
                     roll_50 = rates.get("roll_50lf")
 
                     if btf_base is not None:
-                        btf_total = btf_base + btf_fee
-                        btf_per_sqft = round(btf_total / (width / 12), 3)
-                        btf_display = f"${btf_total:.3f}/LF (${btf_per_sqft:.3f}/sqft)"
+                        btf_total = round(btf_base + btf_fee, 4)
+                        btf_display = f"${btf_total:.4f}/LF"
                     else:
                         btf_display = "Full roll only"
-                        btf_per_sqft = None
 
-                    if roll_100:
-                        roll_100_per_sqft = round(roll_100 / (width / 12) / 100, 3)
-                        roll_100_display = f"${roll_100:,.2f} (${roll_100_per_sqft:.3f}/sqft)"
-                    else:
-                        roll_100_display = "—"
-
+                    roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
                     roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
-                    floor = get_price_floor(film_name)
-
-                    caulk_flag = "🛡️ Caulking req." if film_name in CAULKING_FILMS else ""
+                    caulk_flag = "🛡️" if film_name in CAULKING_FILMS else ""
 
                     lookup_rows.append({
                         "Film": film_name,
@@ -768,54 +755,62 @@ with tab_lookup:
                         "By the Foot": btf_display,
                         "100 LF Roll": roll_100_display,
                         "50 LF Roll": roll_50_display,
-                        "Min Sell Floor": f"${floor:.2f}/sqft",
-                        "Notes": caulk_flag,
+                        "Safety": caulk_flag,
                     })
 
             if lookup_rows:
                 st.dataframe(lookup_rows, use_container_width=True)
 
         else:
-            # ── Dimension-aware instant quote ──
+            # ── Dimension-aware material cost ──
             w_in = parsed_width
             h_in = parsed_height
-            sqft_single = round((w_in / 12) * (h_in / 12), 2)
+            lf_needed = round(h_in / 12, 4)  # height in inches → linear feet
 
-            st.markdown(f"### Instant Quote: {w_in}\" × {h_in}\" — {sqft_single:.2f} sqft per pane")
-            st.caption(f"Film filter: **{film_search_term}** | {len(matches)} match(es)")
+            st.caption(f"Film filter: {film_search_term} | {len(matches)} match(es)")
 
+            cost_rows = []
             for film_name in matches:
                 widths_available = sorted(FILM_RATES[film_name].keys())
 
-                # Find the best roll width that fits the window width
+                # Only show roll widths that are wide enough to cover the window
                 fitting_widths = [rw for rw in widths_available if rw >= w_in]
                 if not fitting_widths:
-                    fitting_widths = widths_available  # show all if none fit
+                    fitting_widths = widths_available
 
-                with st.expander(f"**{film_name}**", expanded=len(matches) <= 3):
-                    for roll_w in fitting_widths:
-                        rates = FILM_RATES[film_name][roll_w]
-                        btf_base = rates.get("btf_base")
-                        btf_fee = rates.get("btf_fee", 0)
-                        roll_100 = rates.get("roll_100lf")
+                for roll_w in fitting_widths:
+                    rates = FILM_RATES[film_name][roll_w]
+                    btf_base = rates.get("btf_base")
+                    btf_fee = rates.get("btf_fee", 0)
+                    roll_100 = rates.get("roll_100lf")
 
-                        # LF needed for one pane on this roll width
-                        lf_per_pane = round(h_in / 12, 3)
-                        lf_with_buffer = round(lf_per_pane + 0.5, 3)  # 6" bleed per pane
+                    if btf_base is not None:
+                        rate_per_lf = round(btf_base + btf_fee, 4)
+                        material_cost = round(rate_per_lf * lf_needed, 2)
+                        cost_display = f"${material_cost:.2f}"
+                        rate_display = f"${rate_per_lf:.4f}/LF"
+                    else:
+                        cost_display = "Full roll only"
+                        rate_display = "Full roll only"
 
-                        if btf_base is not None:
-                            cost_per_pane = round((btf_base + btf_fee) * lf_with_buffer, 2)
-                            cost_per_sqft = round(cost_per_pane / sqft_single, 3) if sqft_single > 0 else 0
-                            cost_str = f"**${cost_per_pane:.2f}** per pane (${cost_per_sqft:.3f}/sqft) at {roll_w}\" roll"
-                        else:
-                            cost_str = f"Full roll only at {roll_w}\" — see 100 LF roll price"
+                    roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
+                    safety_flag = "🛡️" if film_name in CAULKING_FILMS else ""
 
-                        roll_note = f" | 100 LF roll: ${roll_100:,.2f}" if roll_100 else ""
-                        floor = get_price_floor(film_name)
-                        min_sell = round(floor * sqft_single, 2)
-                        caulk_note = " 🛡️ **Caulking required**" if film_name in CAULKING_FILMS else ""
+                    cost_rows.append({
+                        "Film": film_name,
+                        "Roll Width": f"{roll_w}\"",
+                        "LF Needed": f"{lf_needed:.2f} LF",
+                        "Rate": rate_display,
+                        f"Cost ({w_in}x{h_in})": cost_display,
+                        "100 LF Roll": roll_100_display,
+                        "Safety": safety_flag,
+                    })
 
-                        st.markdown(f"- {cost_str}{roll_note} | Min sell: **${min_sell:.2f}**/pane{caulk_note}")
+            if cost_rows:
+                st.markdown(f"**Material cost for a {w_in}\" x {h_in}\" piece ({lf_needed:.2f} LF):**")
+                st.dataframe(cost_rows, use_container_width=True)
+            else:
+                st.warning("No matching films found for those dimensions.")
 
     # ── Quick Cost Calculator ──────────────────
     st.divider()
