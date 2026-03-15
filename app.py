@@ -842,162 +842,197 @@ with tab_proposal:
 # ═════════════════════════════════════════════
 with tab_lookup:
     st.subheader("🔍 Film Price Lookup")
-    st.caption(
-        "Search by film name or code to see wholesale rates. "
-        "Add dimensions to get the material cost for a specific cut. "
-        "Examples: UltraView 15 — SXF-5050 — Guardian 8mil — 60x25 UltraView 15"
-    )
 
-    # Build a flat list of all films with supplier filter
-    all_film_names = sorted(FILM_RATES.keys())
-    supplier_options = ["All", "Edge", "Huper Optik", "Solyx", "ASWF"]
-    supplier_filter = st.selectbox(
-        "Filter by Supplier",
-        options=supplier_options,
-        key="lookup_supplier_filter",
-        help="Filter the film list by supplier."
-    )
-    if supplier_filter != "All":
-        all_film_names = [f for f in all_film_names if get_supplier(f) == supplier_filter]
-
-    search_query = st.text_input(
-        "Film name or WxH film (e.g. 60x25 UltraView 15)",
-        placeholder="e.g., UltraView 15   or   60x25 UltraView 15   or   Guardian 8mil",
-        help="Type any part of the film name. Optionally prefix with dimensions (width x height in inches) to get the cost of that specific piece."
-    )
-
-    # ── Parse optional dimension prefix ──
     import re as _re
-    dim_match = _re.match(
-        r"^\s*(\d+)\s*[xX×]\s*(\d+)\s+(.*)",
-        search_query.strip()
+
+    # ── Helper: build rate table rows for a list of film names ──────────────
+    def _build_rate_rows(film_list):
+        rows = []
+        for film_name in film_list:
+            widths = FILM_RATES[film_name]
+            avail_widths = ", ".join(f'{w}"' for w in sorted(widths.keys()))
+            # Collect one representative rate (cheapest / narrowest width)
+            first_w = sorted(widths.keys())[0]
+            first_r = widths[first_w]
+            price_sqft = first_r.get("price_sqft")
+            btf_base = first_r.get("btf_base")
+            btf_fee = first_r.get("btf_fee", 0)
+            roll_100 = first_r.get("roll_100lf")
+            roll_50 = first_r.get("roll_50lf")
+
+            if price_sqft is not None:
+                rate_display = f"${price_sqft:.2f}/sqft"
+            elif btf_base is not None:
+                rate_display = f"${round(btf_base + btf_fee, 3):.3f}/LF"
+            else:
+                rate_display = "Full roll only"
+
+            roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
+            roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
+            safety_flag = "🛡️" if film_name in CAULKING_FILMS else ""
+
+            rows.append({
+                "Film": film_name,
+                "Widths Available": avail_widths,
+                "Dealer Rate": rate_display,
+                "100 LF Roll": roll_100_display,
+                "50 LF Roll": roll_50_display,
+                "Safety": safety_flag,
+            })
+        return rows
+
+    # ── Helper: build dimension-cost rows for a list of film names ───────────
+    def _build_cost_rows(film_list, w_in, h_in):
+        lf_needed = round(h_in / 12, 4)
+        rows = []
+        for film_name in film_list:
+            widths_available = sorted(FILM_RATES[film_name].keys())
+            fitting_widths = [rw for rw in widths_available if rw >= w_in] or widths_available
+            for roll_w in fitting_widths:
+                rates = FILM_RATES[film_name][roll_w]
+                btf_base = rates.get("btf_base")
+                btf_fee = rates.get("btf_fee", 0)
+                roll_100 = rates.get("roll_100lf")
+                price_sqft = rates.get("price_sqft")
+                if price_sqft is not None:
+                    rate_per_lf = round(price_sqft * (roll_w / 12.0), 4)
+                    material_cost = round(rate_per_lf * lf_needed, 2)
+                    cost_display = f"${material_cost:.2f}"
+                    rate_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF)"
+                elif btf_base is not None:
+                    rate_per_lf = round(btf_base + btf_fee, 4)
+                    material_cost = round(rate_per_lf * lf_needed, 2)
+                    cost_display = f"${material_cost:.2f}"
+                    rate_display = f"${rate_per_lf:.4f}/LF"
+                else:
+                    cost_display = "Full roll only"
+                    rate_display = "Full roll only"
+                roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
+                safety_flag = "🛡️" if film_name in CAULKING_FILMS else ""
+                rows.append({
+                    "Film": film_name,
+                    "Roll Width": f'{roll_w}"',
+                    "LF Needed": f"{lf_needed:.2f} LF",
+                    "Rate": rate_display,
+                    f"Cost ({w_in}x{h_in})": cost_display,
+                    "100 LF Roll": roll_100_display,
+                    "Safety": safety_flag,
+                })
+        return rows
+
+    # ── Global Search (queries all manufacturers) ───────────────────────────
+    st.caption(
+        "Search across all manufacturers by film name or code. "
+        "Optionally prefix with dimensions to get material cost: e.g. **60x25 UltraView 15**"
+    )
+    search_query = st.text_input(
+        "🔎 Search all films (name, code, or WxH film)",
+        placeholder="e.g., Daydream 25   or   60x48 ASWF Nature 20   or   Guardian 8mil",
+        key="lookup_global_search",
+        help="Searches across Edge, Huper Optik, Solyx, and ASWF simultaneously."
     )
 
-    parsed_width = None
-    parsed_height = None
-    film_search_term = search_query.strip()
+    all_film_names_global = sorted(FILM_RATES.keys())
 
-    if dim_match:
-        parsed_width = int(dim_match.group(1))
-        parsed_height = int(dim_match.group(2))
-        film_search_term = dim_match.group(3).strip()
+    dim_match = _re.match(r"^\s*(\d+)\s*[xX×]\s*(\d+)\s+(.*)", search_query.strip())
+    parsed_width = int(dim_match.group(1)) if dim_match else None
+    parsed_height = int(dim_match.group(2)) if dim_match else None
+    film_search_term = dim_match.group(3).strip() if dim_match else search_query.strip()
 
-    # ── Filter films ──
-    if film_search_term:
-        matches = [f for f in all_film_names if film_search_term.lower() in f.lower()]
-    else:
-        matches = all_film_names
-
-    if not matches:
-        st.warning(f"No films found matching '{film_search_term}'. Try a different search term.")
-    else:
-        if not (parsed_width and parsed_height):
-            # ── Standard rate table (no dimensions entered) ──
-            st.caption(f"Showing {len(matches)} film(s). Add dimensions to get cost for a specific cut.")
-
-            lookup_rows = []
-            for film_name in matches:
-                widths = FILM_RATES[film_name]
-                for width, rates in sorted(widths.items()):
-                    btf_base = rates.get("btf_base")
-                    btf_fee = rates.get("btf_fee", 0)
-                    roll_100 = rates.get("roll_100lf")
-                    roll_50 = rates.get("roll_50lf")
-
-                    price_sqft = rates.get("price_sqft")
-                    if price_sqft is not None:
-                        # ASWF: show $/sqft and derived $/LF for each width
-                        rate_per_lf = round(price_sqft * (width / 12.0), 4)
-                        btf_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF @ {width}\")"
-                    elif btf_base is not None:
-                        btf_total = round(btf_base + btf_fee, 4)
-                        btf_display = f"${btf_total:.4f}/LF"
-                    else:
-                        btf_display = "Full roll only"
-
-                    roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
-                    roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
-                    caulk_flag = "🛡️" if film_name in CAULKING_FILMS else ""
-
-                    lookup_rows.append({
-                        "Film": film_name,
-                        "Width": f"{width}\"",
-                        "By the Foot": btf_display,
-                        "100 LF Roll": roll_100_display,
-                        "50 LF Roll": roll_50_display,
-                        "Safety": caulk_flag,
-                    })
-
-            if lookup_rows:
-                st.dataframe(lookup_rows, use_container_width=True)
-
+    if search_query.strip():
+        global_matches = [f for f in all_film_names_global if film_search_term.lower() in f.lower()]
+        if not global_matches:
+            st.warning(f"No films found matching '{film_search_term}'.")
         else:
-            # ── Dimension-aware material cost ──
-            w_in = parsed_width
-            h_in = parsed_height
-            lf_needed = round(h_in / 12, 4)  # height in inches → linear feet
-
-            st.caption(f"Film filter: {film_search_term} | {len(matches)} match(es)")
-
-            cost_rows = []
-            for film_name in matches:
-                widths_available = sorted(FILM_RATES[film_name].keys())
-
-                # Only show roll widths that are wide enough to cover the window
-                fitting_widths = [rw for rw in widths_available if rw >= w_in]
-                if not fitting_widths:
-                    fitting_widths = widths_available
-
-                for roll_w in fitting_widths:
-                    rates = FILM_RATES[film_name][roll_w]
-                    btf_base = rates.get("btf_base")
-                    btf_fee = rates.get("btf_fee", 0)
-                    roll_100 = rates.get("roll_100lf")
-
-                    price_sqft = rates.get("price_sqft")
-                    if price_sqft is not None:
-                        # ASWF: price_sqft * (roll_width / 12) = $/LF
-                        rate_per_lf = round(price_sqft * (roll_w / 12.0), 4)
-                        material_cost = round(rate_per_lf * lf_needed, 2)
-                        cost_display = f"${material_cost:.2f}"
-                        rate_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF)"
-                    elif btf_base is not None:
-                        rate_per_lf = round(btf_base + btf_fee, 4)
-                        material_cost = round(rate_per_lf * lf_needed, 2)
-                        cost_display = f"${material_cost:.2f}"
-                        rate_display = f"${rate_per_lf:.4f}/LF"
-                    else:
-                        cost_display = "Full roll only"
-                        rate_display = "Full roll only"
-
-                    roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
-                    safety_flag = "🛡️" if film_name in CAULKING_FILMS else ""
-
-                    cost_rows.append({
-                        "Film": film_name,
-                        "Roll Width": f"{roll_w}\"",
-                        "LF Needed": f"{lf_needed:.2f} LF",
-                        "Rate": rate_display,
-                        f"Cost ({w_in}x{h_in})": cost_display,
-                        "100 LF Roll": roll_100_display,
-                        "Safety": safety_flag,
-                    })
-
-            if cost_rows:
-                st.markdown(f"**Material cost for a {w_in}\" x {h_in}\" piece ({lf_needed:.2f} LF):**")
-                st.dataframe(cost_rows, use_container_width=True)
+            st.caption(f"{len(global_matches)} match(es) across all manufacturers.")
+            if parsed_width and parsed_height:
+                cost_rows = _build_cost_rows(global_matches, parsed_width, parsed_height)
+                if cost_rows:
+                    st.markdown(f"**Material cost for a {parsed_width}\" × {parsed_height}\" piece:**")
+                    st.dataframe(cost_rows, use_container_width=True)
+                else:
+                    st.warning("No matching films found for those dimensions.")
             else:
-                st.warning("No matching films found for those dimensions.")
+                st.dataframe(_build_rate_rows(global_matches), use_container_width=True)
+
+    st.divider()
+
+    # ── Manufacturer Sub-Tabs ────────────────────────────────────────────────
+    st.markdown("**Browse by Manufacturer**")
+    mfr_tab_edge, mfr_tab_huper, mfr_tab_solyx, mfr_tab_aswf = st.tabs(
+        ["🏷️ Edge", "🏷️ Huper Optik", "🏷️ Solyx", "🏷️ ASWF"]
+    )
+
+    MANUFACTURER_TABS = {
+        "Edge": mfr_tab_edge,
+        "Huper Optik": mfr_tab_huper,
+        "Solyx": mfr_tab_solyx,
+        "ASWF": mfr_tab_aswf,
+    }
+
+    for mfr_name, mfr_tab in MANUFACTURER_TABS.items():
+        with mfr_tab:
+            mfr_films = sorted([f for f in FILM_RATES.keys() if get_supplier(f) == mfr_name])
+            if not mfr_films:
+                st.info(f"No films loaded for {mfr_name}.")
+                continue
+
+            st.caption(f"{len(mfr_films)} films — click any row to see width details.")
+
+            # Per-manufacturer search
+            mfr_search = st.text_input(
+                f"Filter {mfr_name} films",
+                placeholder="e.g., Nature 20",
+                key=f"mfr_search_{mfr_name}",
+            )
+            if mfr_search.strip():
+                mfr_films = [f for f in mfr_films if mfr_search.strip().lower() in f.lower()]
+
+            if not mfr_films:
+                st.warning("No films match that filter.")
+            else:
+                st.dataframe(_build_rate_rows(mfr_films), use_container_width=True)
+
+            # Per-width detail expander
+            with st.expander(f"📐 Show per-width rates for all {mfr_name} films", expanded=False):
+                detail_rows = []
+                for film_name in mfr_films:
+                    widths = FILM_RATES[film_name]
+                    for width, rates in sorted(widths.items()):
+                        btf_base = rates.get("btf_base")
+                        btf_fee = rates.get("btf_fee", 0)
+                        roll_100 = rates.get("roll_100lf")
+                        roll_50 = rates.get("roll_50lf")
+                        price_sqft = rates.get("price_sqft")
+                        if price_sqft is not None:
+                            rate_per_lf = round(price_sqft * (width / 12.0), 4)
+                            btf_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF)"
+                        elif btf_base is not None:
+                            btf_display = f"${round(btf_base + btf_fee, 4):.4f}/LF"
+                        else:
+                            btf_display = "Full roll only"
+                        roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
+                        roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
+                        detail_rows.append({
+                            "Film": film_name,
+                            "Width": f'{width}"',
+                            "Dealer Rate": btf_display,
+                            "100 LF Roll": roll_100_display,
+                            "50 LF Roll": roll_50_display,
+                        })
+                if detail_rows:
+                    st.dataframe(detail_rows, use_container_width=True)
 
     # ── Quick Cost Calculator ──────────────────
     st.divider()
     st.subheader("⚡ Quick Cost Calculator")
     st.caption("Select a film and enter a quantity to get an instant cost estimate.")
 
+    all_film_names_qc = sorted(FILM_RATES.keys())
     qc_col1, qc_col2, qc_col3 = st.columns(3)
 
     with qc_col1:
-        selected_film = st.selectbox("Film", options=all_film_names, key="qc_film")
+        selected_film = st.selectbox("Film", options=all_film_names_qc, key="qc_film")
 
     available_widths = sorted(FILM_RATES.get(selected_film, {}).keys())
 
@@ -1005,7 +1040,7 @@ with tab_lookup:
         selected_width = st.selectbox(
             "Roll Width",
             options=available_widths,
-            format_func=lambda w: f"{w}\"",
+            format_func=lambda w: f'{w}"',
             key="qc_width"
         )
 
@@ -1014,7 +1049,6 @@ with tab_lookup:
 
     if selected_film and selected_width and qty_lf:
         result = calculate_material_cost(selected_film, selected_width, qty_lf, 0)
-        rates = result["rates"]
 
         st.markdown("---")
         res_col1, res_col2, res_col3 = st.columns(3)
