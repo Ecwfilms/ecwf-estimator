@@ -1,7 +1,8 @@
 # app.py
-# East Coast Window Films — Internal Estimator v4.1
-# Upgrades: smart Film Lookup, caulking for safety films only (8mil+),
-#           client info scraping with clickable links, session persistence.
+# East Coast Window Films — Internal Estimator v4.4
+# Upgrades: ASWF full catalog, corrected labor adders (removal $2/sqft, ladder $1/sqft,
+#           new construction $1/sqft), french panes $8/pane (not per sqft),
+#           film lookup with width/price, session persistence.
 
 import streamlit as st
 from worksheet_parser import extract_text_from_pdf, extract_window_data, extract_client_info
@@ -21,6 +22,7 @@ from pricing_engine import (
     SOLO_INSTALLER_SQFT_PER_DAY,
     FILM_RATES,
     COMPLEXITY_ADDERS,
+    FRENCH_PANE_RATE,
     GO_NOGO_MIN_MARGIN,
     GO_NOGO_WARN_MARGIN,
 )
@@ -378,6 +380,8 @@ with tab_estimator:
 
                 complexity_flags = {}
 
+                french_panes_count = 0
+
                 if is_active:
                     with st.expander(
                         f"{w_desc} — {w_qty} pane(s) @ {w_dims} = {line_sqft:.0f} sqft",
@@ -393,14 +397,29 @@ with tab_estimator:
                                     key=f"cx_{section_name}_{idx}_{fkey}",
                                     help=factor["help"]
                                 )
+                        # French panes: charged per pane at $8.00/pane (not per sqft)
+                        st.markdown("**French Panes** — $8.00 per pane (enter count, not sqft):")
+                        french_panes_count = st.number_input(
+                            "Number of French Panes",
+                            min_value=0,
+                            max_value=500,
+                            value=0,
+                            step=1,
+                            key=f"fp_{section_name}_{idx}",
+                            help="Each divided pane counts as 1. Charged at $8.00/pane flat."
+                        )
                 else:
                     for fkey in COMPLEXITY_ADDERS.keys():
                         complexity_flags[fkey] = False
 
-                labor_info = calculate_line_item_labor(line_sqft, w_film, complexity_flags)
+                labor_info = calculate_line_item_labor(
+                    line_sqft, w_film, complexity_flags,
+                    french_panes_count=int(french_panes_count)
+                )
                 section_labor_total += labor_info["labor_cost"]
 
-                if any(complexity_flags.values()):
+                has_complexity = any(complexity_flags.values()) or french_panes_count > 0
+                if has_complexity:
                     complexity_summary.append(
                         f"{w_desc}: {', '.join(labor_info['active_factors'])} → ${labor_info['labor_cost']:.2f} labor"
                     )
@@ -829,8 +848,17 @@ with tab_lookup:
         "Examples: UltraView 15 — SXF-5050 — Guardian 8mil — 60x25 UltraView 15"
     )
 
-    # Build a flat list of all films
+    # Build a flat list of all films with supplier filter
     all_film_names = sorted(FILM_RATES.keys())
+    supplier_options = ["All", "Edge", "Huper Optik", "Solyx", "ASWF"]
+    supplier_filter = st.selectbox(
+        "Filter by Supplier",
+        options=supplier_options,
+        key="lookup_supplier_filter",
+        help="Filter the film list by supplier."
+    )
+    if supplier_filter != "All":
+        all_film_names = [f for f in all_film_names if get_supplier(f) == supplier_filter]
 
     search_query = st.text_input(
         "Film name or WxH film (e.g. 60x25 UltraView 15)",
@@ -876,7 +904,12 @@ with tab_lookup:
                     roll_100 = rates.get("roll_100lf")
                     roll_50 = rates.get("roll_50lf")
 
-                    if btf_base is not None:
+                    price_sqft = rates.get("price_sqft")
+                    if price_sqft is not None:
+                        # ASWF: show $/sqft and derived $/LF for each width
+                        rate_per_lf = round(price_sqft * (width / 12.0), 4)
+                        btf_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF @ {width}\")"
+                    elif btf_base is not None:
                         btf_total = round(btf_base + btf_fee, 4)
                         btf_display = f"${btf_total:.4f}/LF"
                     else:
@@ -921,7 +954,14 @@ with tab_lookup:
                     btf_fee = rates.get("btf_fee", 0)
                     roll_100 = rates.get("roll_100lf")
 
-                    if btf_base is not None:
+                    price_sqft = rates.get("price_sqft")
+                    if price_sqft is not None:
+                        # ASWF: price_sqft * (roll_width / 12) = $/LF
+                        rate_per_lf = round(price_sqft * (roll_w / 12.0), 4)
+                        material_cost = round(rate_per_lf * lf_needed, 2)
+                        cost_display = f"${material_cost:.2f}"
+                        rate_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF)"
+                    elif btf_base is not None:
                         rate_per_lf = round(btf_base + btf_fee, 4)
                         material_cost = round(rate_per_lf * lf_needed, 2)
                         cost_display = f"${material_cost:.2f}"

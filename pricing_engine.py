@@ -1,5 +1,5 @@
 # pricing_engine.py
-# East Coast Window Films — Pricing Engine v4.3
+# East Coast Window Films — Pricing Engine v4.4
 # Handles roll optimization, material cost, labor complexity scoring, and Go/No-Go logic.
 #
 # PRICING MODEL (Edge Dealer Store):
@@ -428,6 +428,331 @@ FILM_RATES: Dict[str, Dict[int, Dict[str, float]]] = {
         48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 800.00, "roll_50lf": 440.00},
         60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1000.00, "roll_50lf": 550.00},
     },
+    # ── ASWF — EXCLUSIVE SERIES ───────────────────────────────────────────────
+    # ASWF pricing: price_sqft * (width_in / 12) = $/LF; rolls in 25ft increments
+    "ASWF Aurora 40": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 897.00, "price_sqft": 3.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1495.00, "price_sqft": 3.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1794.00, "price_sqft": 3.00},
+    },
+    "ASWF Aurora 70": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 897.00, "price_sqft": 3.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1495.00, "price_sqft": 3.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1794.00, "price_sqft": 3.00},
+    },
+    "ASWF Twilight 10": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00, "roll_50lf": 330.00, "price_sqft": 2.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1000.00, "roll_50lf": 550.00, "price_sqft": 2.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1200.00, "roll_50lf": 660.00, "price_sqft": 2.00},
+    },
+    "ASWF Twilight 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00, "roll_50lf": 330.00, "price_sqft": 2.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1000.00, "roll_50lf": 550.00, "price_sqft": 2.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1200.00, "roll_50lf": 660.00, "price_sqft": 2.00},
+    },
+    "ASWF Twilight 35": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00, "roll_50lf": 330.00, "price_sqft": 2.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1000.00, "roll_50lf": 550.00, "price_sqft": 2.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1200.00, "roll_50lf": 660.00, "price_sqft": 2.00},
+    },
+    # ── ASWF — DUAL REFLECTIVE SOLAR SERIES ──────────────────────────────────
+    "ASWF Illusion": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Daydream 5": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Daydream 15": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Daydream 25": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Daydream 35": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Sky 10": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Sky 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Sky 30": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    "ASWF Sky 40": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 369.00, "price_sqft": 1.19},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 504.00, "price_sqft": 1.19},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 594.00, "price_sqft": 1.19},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 734.00, "price_sqft": 1.19},
+    },
+    # ── ASWF — SOLAR SERIES ───────────────────────────────────────────────────
+    "ASWF Legacy 40": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 485.00, "price_sqft": 1.58},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 672.00, "price_sqft": 1.58},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 788.00, "price_sqft": 1.58},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 945.00, "price_sqft": 1.58},
+    },
+    "ASWF Legacy 50": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 485.00, "price_sqft": 1.58},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 672.00, "price_sqft": 1.58},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 788.00, "price_sqft": 1.58},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 945.00, "price_sqft": 1.58},
+    },
+    "ASWF Legacy 70": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 485.00, "price_sqft": 1.58},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 672.00, "price_sqft": 1.58},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 788.00, "price_sqft": 1.58},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 945.00, "price_sqft": 1.58},
+    },
+    "ASWF Nature 10": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 357.00, "price_sqft": 1.10},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 473.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 552.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 714.00, "price_sqft": 1.10},
+    },
+    "ASWF Nature 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 357.00, "price_sqft": 1.10},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 473.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 552.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 714.00, "price_sqft": 1.10},
+    },
+    "ASWF Nature 30": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 357.00, "price_sqft": 1.10},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 473.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 552.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 714.00, "price_sqft": 1.10},
+    },
+    "ASWF Nature 40": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 357.00, "price_sqft": 1.10},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 473.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 552.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 714.00, "price_sqft": 1.10},
+    },
+    "ASWF Nature 50": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 357.00, "price_sqft": 1.10},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 473.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 552.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 714.00, "price_sqft": 1.10},
+    },
+    "ASWF Horizon 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 357.00, "price_sqft": 1.10},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 473.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 552.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 714.00, "price_sqft": 1.10},
+    },
+    "ASWF Horizon 35": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 357.00, "price_sqft": 1.10},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 473.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 552.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 714.00, "price_sqft": 1.10},
+    },
+    "ASWF Moonlight 05": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 372.00, "price_sqft": 1.24},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 506.00, "price_sqft": 1.24},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 619.00, "price_sqft": 1.24},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 743.00, "price_sqft": 1.24},
+    },
+    "ASWF Moonlight 10": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 372.00, "price_sqft": 1.24},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 506.00, "price_sqft": 1.24},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 619.00, "price_sqft": 1.24},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 743.00, "price_sqft": 1.24},
+    },
+    "ASWF Moonlight 25": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 372.00, "price_sqft": 1.24},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 506.00, "price_sqft": 1.24},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 619.00, "price_sqft": 1.24},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 743.00, "price_sqft": 1.24},
+    },
+    "ASWF Reflection 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 374.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 431.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 550.00, "price_sqft": 0.86},
+    },
+    "ASWF Reflection 35": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 374.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 431.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 550.00, "price_sqft": 0.86},
+    },
+    "ASWF Reflection 50": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 374.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 431.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 550.00, "price_sqft": 0.86},
+    },
+    "ASWF Firewall 70": {
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 788.00, "price_sqft": 1.58},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 945.00, "price_sqft": 1.58},
+    },
+    # ── ASWF — DESIGN SERIES ──────────────────────────────────────────────────
+    "ASWF UV Clear": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 335.00, "price_sqft": 1.11},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 475.00, "price_sqft": 1.11},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 555.00, "price_sqft": 1.11},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 665.00, "price_sqft": 1.11},
+    },
+    "ASWF White Frost": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 370.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 430.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 545.00, "price_sqft": 0.86},
+    },
+    "ASWF Black Out": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 370.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 430.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 545.00, "price_sqft": 0.86},
+    },
+    "ASWF White Out": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 370.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 430.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 545.00, "price_sqft": 0.86},
+    },
+    "ASWF Removable White Frost": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 370.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 430.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 545.00, "price_sqft": 0.86},
+    },
+    "ASWF Removable Blackout": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 275.00, "price_sqft": 0.86},
+        48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 370.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 430.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 545.00, "price_sqft": 0.86},
+    },
+    # ── ASWF — PROTECTION & SECURITY ─────────────────────────────────────────
+    "ASWF Safety Clear 4mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 258.00, "price_sqft": 0.86},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 430.00, "price_sqft": 0.86},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 516.00, "price_sqft": 0.86},
+    },
+    "ASWF Safety Clear 7mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 330.00, "price_sqft": 1.10},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 550.00, "price_sqft": 1.10},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 660.00, "price_sqft": 1.10},
+    },
+    "ASWF Safety Clear 8mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 435.00, "price_sqft": 1.45},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 725.00, "price_sqft": 1.45},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 870.00, "price_sqft": 1.45},
+    },
+    "ASWF Safety Clear 12mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 795.00, "price_sqft": 2.65},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1325.00, "price_sqft": 2.65},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1590.00, "price_sqft": 2.65},
+    },
+    "ASWF Safety Clear 16mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 825.00, "price_sqft": 2.75},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1375.00, "price_sqft": 2.75},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1650.00, "price_sqft": 2.75},
+    },
+    "ASWF AG Clear 4mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 270.00, "price_sqft": 0.90},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 450.00, "price_sqft": 0.90},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 540.00, "price_sqft": 0.90},
+    },
+    "ASWF AG Clear 6mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 390.00, "price_sqft": 1.30},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 650.00, "price_sqft": 1.30},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 780.00, "price_sqft": 1.30},
+    },
+    "ASWF AG Clear 7mil": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 405.00, "price_sqft": 1.35},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 675.00, "price_sqft": 1.35},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 810.00, "price_sqft": 1.35},
+    },
+    "ASWF Solar Safety 4mil Reflection 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 360.00, "price_sqft": 1.20},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00, "price_sqft": 1.20},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 720.00, "price_sqft": 1.20},
+    },
+    "ASWF Solar Safety 8mil Reflection 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 492.00, "price_sqft": 1.64},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 820.00, "price_sqft": 1.64},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 984.00, "price_sqft": 1.64},
+    },
+    "ASWF Solar Safety 4mil Nature 20/40": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 420.00, "price_sqft": 1.40},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 700.00, "price_sqft": 1.40},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 840.00, "price_sqft": 1.40},
+    },
+    "ASWF Solar Safety 8mil Nature 20/40": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 540.00, "price_sqft": 1.80},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 900.00, "price_sqft": 1.80},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1080.00, "price_sqft": 1.80},
+    },
+    "ASWF Solar Safety 9mil Daydream 25": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 675.00, "price_sqft": 2.25},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1125.00, "price_sqft": 2.25},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1350.00, "price_sqft": 2.25},
+    },
+    "ASWF Solar Safety 10mil Legacy 50": {
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1125.00, "price_sqft": 2.25},
+    },
+    # ── ASWF — EXTERIOR FILMS ─────────────────────────────────────────────────
+    "ASWF Exterior Legacy 40": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 499.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 832.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 999.00},
+    },
+    "ASWF Exterior Legacy 70": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 499.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 832.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 999.00},
+    },
+    "ASWF Exterior Nature 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 360.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 720.00},
+    },
+    "ASWF Exterior Nature 30": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 360.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 720.00},
+    },
+    "ASWF Exterior Reflection 20": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 360.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 720.00},
+    },
+    "ASWF Exterior Reflection 35": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 360.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 600.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 720.00},
+    },
+    "ASWF Exterior 7mil Safety": {
+        36: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 465.00},
+        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 889.00},
+        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 930.00},
+    },
 }
 
 DEFAULT_FILM_RATES = {
@@ -440,7 +765,7 @@ DEFAULT_FILM_RATES = {
 FULL_ROLL_ONLY_KEYWORDS = [
     "guardian", "cs 4mil", "cs 8mil", "cs 14mil", "shield 35",
     "twilight", "clearshield", "safety", "security",
-    "ultrasafe", "bsf solar",
+    "ultrasafe", "bsf solar", "aswf",
 ]
 
 # Minimum selling price floors per sqft by product family
@@ -448,6 +773,9 @@ PRICE_FLOORS_PER_SQFT: Dict[str, float] = {
     "ultraview":      7.50,
     "twilight":      10.00,
     "aurora":        12.00,
+    "aswf aurora":   12.00,
+    "aswf twilight": 10.00,
+    "aswf":           7.00,
     "huper":         12.00,
     "edge pristine": 12.00,
     "pristine":      12.00,
@@ -482,6 +810,7 @@ SUPPLIER_FREE_SHIPPING: Dict[str, float] = {
     "Edge":           1000.00,
     "Huper Optik":    1000.00,
     "Solyx":          1000.00,
+    "ASWF":           1000.00,
 }
 
 # Supplier keyword mapping — used to identify which supplier a film belongs to
@@ -500,8 +829,11 @@ SUPPLIER_KEYWORDS: Dict[str, List[str]] = {
     ],
     "Solyx": [
         "sxf", "sxo", "sxp", "sxb", "sxg", "sxn", "sxi", "sgc", "sx-stpf",
-        "sx-7876", "chalkboard", "sea turtle", "twilight", "aurora",
-        "ultrasafe", "bsf solar", "solyx",
+        "sx-7876", "chalkboard", "sea turtle",
+        "ultrasafe", "bsf solar", "solyx", "ultracool",
+    ],
+    "ASWF": [
+        "aswf",
     ],
 }
 
@@ -549,44 +881,44 @@ LABOR_BASE_RATES: Dict[str, float] = {
     "caulking":    3.00,   # Per LINEAR FOOT of caulking (separate line item)
 }
 
-# Complexity adders per sqft — applied per line item, not per whole job
+# Complexity adders — v4.4 CORRECTED VALUES
+# NOTE: french_panes is charged at $8/pane (flat), NOT per sqft.
+#       It is handled separately via french_panes_count in calculate_line_item_labor.
 COMPLEXITY_ADDERS: Dict[str, Dict[str, Any]] = {
     "removal": {
         "label": "Film Removal",
+        "adder": 2.00,
+        "per": "sqft",
+        "help": "Existing film must be removed before installation. Adds $2.00/sqft.",
+    },
+    "new_construction": {
+        "label": "New Construction",
         "adder": 1.00,
-        "help": "Existing film must be removed before installation. Adds $1.00/sqft.",
-    },
-    "frames": {
-        "label": "Dirty/Painted Frames",
-        "adder": 0.50,
-        "help": "Delicate or dirty wood/painted frames requiring extra care. Adds $0.50/sqft.",
-    },
-    "french_panes": {
-        "label": "French Panes",
-        "adder": 1.50,
-        "help": "Multiple small divided panes requiring individual cuts. Adds $1.50/sqft.",
-    },
-    "small_windows": {
-        "label": "Many Small Windows",
-        "adder": 1.25,
-        "help": "High pane count with small individual windows. Adds $1.25/sqft.",
+        "per": "sqft",
+        "help": "New construction site — dust, debris, and extra prep. Adds $1.00/sqft.",
     },
     "ladder": {
-        "label": "Ladder/Scaffold/Lift",
-        "adder": 0.75,
-        "help": "Windows not accessible from ground level. Adds $0.75/sqft.",
+        "label": "Ladder / High Work",
+        "adder": 1.00,
+        "per": "sqft",
+        "help": "Windows not accessible from ground level. Adds $1.00/sqft.",
     },
-    "dust_debris": {
-        "label": "Construction Dust/Debris",
+    "frames": {
+        "label": "Dirty / Painted Frames",
         "adder": 0.50,
-        "help": "New construction site with excessive dust or debris. Adds $0.50/sqft.",
+        "per": "sqft",
+        "help": "Delicate or dirty wood/painted frames requiring extra care. Adds $0.50/sqft.",
     },
     "specialty_decorative": {
         "label": "Specialty Decorative Install",
         "adder": 1.50,
+        "per": "sqft",
         "help": "Complex decorative film requiring precision cutting or alignment. Adds $1.50/sqft.",
     },
 }
+
+# French pane charge: $8.00 per pane (separate from sqft adders)
+FRENCH_PANE_RATE = 8.00
 
 # Go/No-Go margin thresholds
 GO_NOGO_MIN_MARGIN = 40.0      # Red below this
@@ -602,7 +934,7 @@ def is_full_roll_only(film_name: str) -> bool:
 def is_safety_film(film_name: str) -> bool:
     """Return True if this film is a Safety & Security product."""
     film_lower = film_name.lower()
-    safety_keywords = ["guardian", "cs 4mil", "cs 8mil", "cs 14mil", "shield", "clearshield", "safety", "security"]
+    safety_keywords = ["guardian", "cs 4mil", "cs 8mil", "cs 14mil", "shield", "clearshield", "safety", "security", "aswf safety", "aswf ag", "aswf solar safety"]
     return any(kw in film_lower for kw in safety_keywords)
 
 
@@ -611,7 +943,7 @@ def get_labor_base_rate(film_name: str) -> float:
     film_lower = film_name.lower()
     if is_safety_film(film_name):
         return LABOR_BASE_RATES["safety"]
-    if any(kw in film_lower for kw in ["frost", "blackout", "whiteout", "decorative"]):
+    if any(kw in film_lower for kw in ["frost", "blackout", "whiteout", "decorative", "aswf white", "aswf black"]):
         return LABOR_BASE_RATES["decorative"]
     return LABOR_BASE_RATES["solar"]
 
@@ -620,7 +952,8 @@ def calculate_line_item_labor(
     sqft: float,
     film_name: str,
     complexity_flags: Dict[str, bool],
-) -> Dict[str, float]:
+    french_panes_count: int = 0,
+) -> Dict[str, Any]:
     """
     Calculate labor cost for a single line item (window group).
 
@@ -628,33 +961,45 @@ def calculate_line_item_labor(
         sqft: Square footage of this line item.
         film_name: Name of the film being installed.
         complexity_flags: Dict of complexity keys -> True/False.
-            Keys: removal, frames, french_panes, small_windows, ladder, dust_debris, specialty_decorative
+            Keys: removal, new_construction, ladder, frames, specialty_decorative
+        french_panes_count: Number of french panes charged at $8.00/pane (flat, not per sqft).
 
     Returns:
-        Dict with base_rate, complexity_adder, total_rate, labor_cost, breakdown.
+        Dict with base_rate, sqft_adder, total_rate, sqft_labor, french_pane_cost, labor_cost, breakdown.
     """
     base_rate = get_labor_base_rate(film_name)
-    complexity_adder = sum(
+
+    # Sqft-based adders
+    sqft_adder = sum(
         COMPLEXITY_ADDERS[key]["adder"]
         for key, active in complexity_flags.items()
         if active and key in COMPLEXITY_ADDERS
     )
-    total_rate = base_rate + complexity_adder
-    labor_cost = round(total_rate * sqft, 2)
+    total_rate = base_rate + sqft_adder
+    sqft_labor = round(total_rate * sqft, 2)
+
+    # French pane adder: $8/pane (flat)
+    french_pane_cost = round(french_panes_count * FRENCH_PANE_RATE, 2)
+    labor_cost = round(sqft_labor + french_pane_cost, 2)
 
     active_factors = [
         COMPLEXITY_ADDERS[key]["label"]
         for key, active in complexity_flags.items()
         if active and key in COMPLEXITY_ADDERS
     ]
+    if french_panes_count > 0:
+        active_factors.append(f"French Panes ({french_panes_count} panes × $8.00 = ${french_pane_cost:.2f})")
 
     return {
         "base_rate": base_rate,
-        "complexity_adder": complexity_adder,
+        "sqft_adder": sqft_adder,
         "total_rate": total_rate,
+        "sqft_labor": sqft_labor,
+        "french_pane_cost": french_pane_cost,
         "labor_cost": labor_cost,
         "active_factors": active_factors,
         "sqft": sqft,
+        "french_panes_count": french_panes_count,
     }
 
 
@@ -744,6 +1089,42 @@ def calculate_material_cost(
     rates = get_film_rates(film_name, roll_width)
     order_lf = round(required_lf + buffer_lf, 2)
     order_lf_ceil = int(order_lf) + (1 if order_lf % 1 > 0 else 0)
+
+    # ASWF films: price_sqft * (width_in / 12) = $/LF
+    if rates.get("price_sqft") is not None and rates.get("btf_base") is None:
+        price_sqft = rates["price_sqft"]
+        rate_per_lf = round(price_sqft * (roll_width / 12.0), 4)
+        btf_cost = round(rate_per_lf * order_lf_ceil, 2)
+        roll_100lf_price = rates.get("roll_100lf")
+        roll_50lf_price = rates.get("roll_50lf")
+        full_roll_savings = None
+        recommended_cost = btf_cost
+        order_method = "by_the_foot"
+        if roll_100lf_price and order_lf_ceil <= 100 and roll_100lf_price < btf_cost:
+            full_roll_savings = round(btf_cost - roll_100lf_price, 2)
+            recommended_cost = roll_100lf_price
+            order_method = "full_roll"
+            order_lf_ceil = 100
+        elif roll_50lf_price and order_lf_ceil <= 50 and roll_50lf_price < btf_cost:
+            full_roll_savings = round(btf_cost - roll_50lf_price, 2)
+            recommended_cost = roll_50lf_price
+            order_method = "50lf_roll"
+            order_lf_ceil = 50
+        if order_method == "by_the_foot":
+            # ASWF rolls come in 25ft increments
+            order_lf_ceil = max(25, ((order_lf_ceil + 24) // 25) * 25)
+            recommended_cost = round(rate_per_lf * order_lf_ceil, 2)
+        return {
+            "order_lf": order_lf_ceil,
+            "btf_cost": btf_cost,
+            "full_roll_cost": roll_100lf_price,
+            "full_roll_savings": full_roll_savings,
+            "recommended_cost": recommended_cost,
+            "order_method": order_method,
+            "full_roll_only": False,
+            "rates": rates,
+            "rate_per_lf": rate_per_lf,
+        }
 
     full_roll_only = is_full_roll_only(film_name) or rates.get("btf_base") is None
 
