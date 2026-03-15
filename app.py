@@ -1,10 +1,21 @@
 # app.py
-# East Coast Window Films — Internal Estimator v4.4
-# Upgrades: ASWF full catalog, corrected labor adders (removal $2/sqft, ladder $1/sqft,
-#           new construction $1/sqft), french panes $8/pane (not per sqft),
-#           film lookup with width/price, session persistence.
+# East Coast Window Films — Internal Estimator v4.5
+# v4.5 changes:
+#   - Fixed import block (calculate_install_days, SOLO_SQFT_PER_DAY, CREW_SQFT_PER_DAY,
+#     DAILY_PROFIT_FLOOR_OWNER, DAILY_PROFIT_FLOOR_SUB)
+#   - Fixed labor display ($0.00 bug — base $3/sqft now shown explicitly)
+#   - Job Summary & Negotiation panel moved to TOP of page
+#   - Sidebar room checklist removed; inline checkboxes on section headers
+#   - Complexity factors always visible (no collapsed expanders)
+#   - Consolidated cut sheet and material orders at job level (bottom)
+#   - Rare Options (lift rental, exterior premium) moved into Job Totals panel
 
 import streamlit as st
+import urllib.parse
+import datetime as _dt
+import re as _re
+import os as _os
+
 from worksheet_parser import extract_text_from_pdf, extract_window_data, extract_client_info
 from proposal_generator import generate_proposal_pdf
 from pricing_engine import (
@@ -19,7 +30,12 @@ from pricing_engine import (
     is_safety_film,
     get_supplier,
     check_free_shipping,
+    calculate_install_days,
     SOLO_INSTALLER_SQFT_PER_DAY,
+    SOLO_SQFT_PER_DAY,
+    CREW_SQFT_PER_DAY,
+    DAILY_PROFIT_FLOOR_OWNER,
+    DAILY_PROFIT_FLOOR_SUB,
     FILM_RATES,
     COMPLEXITY_ADDERS,
     FRENCH_PANE_RATE,
@@ -70,7 +86,7 @@ if "client_info" not in st.session_state:
     st.session_state["client_info"] = None
 
 # ─────────────────────────────────────────────
-# Sidebar: Job Settings
+# Sidebar: Job Settings (minimal — no room list)
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.header("⚙️ Job Settings")
@@ -200,7 +216,6 @@ with tab_estimator:
                 info_parts.append(f"**{client_name}**")
 
             if client_phone:
-                # Format as tel: link (strip non-digits for href)
                 digits = "".join(c for c in client_phone if c.isdigit())
                 info_parts.append(f"[📞 {client_phone}](tel:{digits})")
 
@@ -208,8 +223,6 @@ with tab_estimator:
                 info_parts.append(f"[✉️ {client_email}](mailto:{client_email})")
 
             if client_address:
-                # Encode address for Google Maps / Apple Maps universal link
-                import urllib.parse
                 encoded_addr = urllib.parse.quote(client_address)
                 maps_url = f"https://maps.google.com/?q={encoded_addr}"
                 info_parts.append(f"[📍 {client_address}]({maps_url})")
@@ -224,34 +237,28 @@ with tab_estimator:
         col2.metric("Total Pane Count", f"{project_total_panes} panes")
         col3.metric("Sections / Rooms", f"{len(all_section_names)}")
 
-        # ── Room Selector ────────────────────────
-        st.divider()
-        st.subheader("🏠 Room Selector")
-        st.caption("Deselect rooms to see how removing them affects the total price. The original full-job price is always shown for comparison.")
+        # ─────────────────────────────────────────
+        # FIRST PASS: Calculate all section results
+        # (needed so Job Summary panel can appear at top)
+        # ─────────────────────────────────────────
 
-        active_sections = {}
-        cols = st.columns(min(len(all_section_names), 4))
-        for i, name in enumerate(all_section_names):
-            with cols[i % len(cols)]:
-                active_sections[name] = st.checkbox(name, value=True, key=f"room_{name}")
-
-        active_section_names = [n for n, active in active_sections.items() if active]
-
-        if not active_section_names:
-            st.warning("All rooms are deselected. Select at least one room to generate an estimate.")
-            st.stop()
-
-        st.divider()
+        # We need a two-pass approach:
+        # Pass 1: Collect active_sections from inline checkboxes (rendered below)
+        # Pass 2: Render Job Summary at top using session state from previous run
+        # Solution: render section checkboxes first (they're part of section headers),
+        # then compute totals, then show Job Summary panel.
+        # The Job Summary panel will always reflect the CURRENT run's selections.
 
         # ── Detect if any active section uses a caulking-required film ──
-        active_films_all = []
-        for sname in active_section_names:
+        # (pre-scan all windows to decide whether to show caulking input)
+        all_films_prescan = []
+        for sname in all_section_names:
             for w in section_groups.get(sname, []):
-                active_films_all.append(w.get("film", ""))
-
-        job_needs_caulking = any(needs_caulking(f) for f in active_films_all)
+                all_films_prescan.append(w.get("film", ""))
+        job_needs_caulking = any(needs_caulking(f) for f in all_films_prescan)
 
         # ── Caulking (safety films only) ─────────
+        st.divider()
         if job_needs_caulking:
             caulking_lf = st.number_input(
                 "🛡️ Caulking (Linear Feet)",
@@ -270,38 +277,10 @@ with tab_estimator:
             caulking_lf = 0.0
             caulking_cost = 0.0
 
-        # ── Rare Options (collapsed by default) ──
-        with st.expander("⚙️ Rare Options — Equipment Rental / Exterior Install"):
-            rare_col1, rare_col2 = st.columns(2)
-            with rare_col1:
-                equipment_rental = st.number_input(
-                    "Equipment Rental ($)",
-                    min_value=0.0,
-                    value=0.0,
-                    step=50.0,
-                    help="Lift, scaffold, or other equipment rental cost. Added directly to total job cost."
-                )
-                if equipment_rental > 0:
-                    st.caption(f"Equipment rental: ${equipment_rental:,.2f}")
-            with rare_col2:
-                exterior_premium_pct = st.number_input(
-                    "Exterior Install Premium (%)",
-                    min_value=0.0,
-                    max_value=100.0,
-                    value=0.0,
-                    step=5.0,
-                    help="Percentage markup for exterior installations. e.g., 25 adds 25% to the sell price."
-                )
-                if exterior_premium_pct > 0:
-                    st.caption(f"Exterior premium: {exterior_premium_pct:.0f}% added to sell price")
-
-        st.divider()
-
         # ─────────────────────────────────────────
         # Per-Section Analysis
         # ─────────────────────────────────────────
-        order_lines = []
-
+        # Accumulators
         full_job_material = 0.0
         full_job_labor = 0.0
         full_job_sell = 0.0
@@ -317,6 +296,17 @@ with tab_estimator:
         job_has_ladder = False
         job_has_french_panes = False
 
+        # Consolidated order tracking (film -> roll_width -> lf)
+        consolidated_orders: dict = {}  # key: (film, roll) -> {"lf": float, "method": str}
+        consolidated_cut_rows: list = []  # all pull rows across all sections
+
+        st.divider()
+        st.subheader("🏠 Room Breakdown")
+        st.caption(
+            "Use the checkbox on each room header to include or exclude it from the estimate. "
+            "Complexity factors are shown inline — check any that apply."
+        )
+
         for section_name, section_windows in section_groups.items():
             section_panes = expand_windows(section_windows)
             film_names = sorted(list(set([w["film"] for w in section_windows])))
@@ -326,6 +316,29 @@ with tab_estimator:
             section_sqft = section_meta.get(section_name, {}).get("room_total_sqft", 0) or 0
             section_panes_total = section_meta.get(section_name, {}).get("room_total_panes", len(section_panes))
 
+            # ── Inline section header with checkbox ──
+            hdr_col, chk_col = st.columns([5, 1])
+            with hdr_col:
+                st.markdown(f"### {section_name}")
+            with chk_col:
+                is_active = st.checkbox(
+                    "Include",
+                    value=True,
+                    key=f"room_{section_name}",
+                    help=f"Uncheck to exclude {section_name} from the estimate."
+                )
+
+            st.markdown(
+                f"**Film:** {film_display} &nbsp;|&nbsp; "
+                f"**Panes:** {section_panes_total} &nbsp;|&nbsp; "
+                f"**Sqft:** {section_sqft}"
+            )
+
+            if is_safety_film(primary_film):
+                caulk_note = " Caulking required (8mil+)." if needs_caulking(primary_film) else ""
+                st.info(f"🛡️ Safety & Security film — ordered in full rolls only. Labor rate: $3.50/sqft.{caulk_note}")
+
+            # ── Roll width optimization ──
             roll_options = [48, 60, 72]
             comparison = []
 
@@ -353,22 +366,14 @@ with tab_estimator:
 
             if not comparison:
                 section_results[section_name] = {"error": True}
+                st.warning(f"Could not calculate material cost for {section_name}. Check film assignment in TintWiz.")
+                st.divider()
                 continue
 
             best = min(comparison, key=lambda x: x["mat_cost"])
 
-            is_active = active_sections.get(section_name, True)
-
-            if is_active:
-                st.subheader(f"📐 {section_name}")
-                st.markdown(f"**Product:** {film_display}  |  **Panes:** {section_panes_total}  |  **Sqft:** {section_sqft}")
-
-                if is_safety_film(primary_film):
-                    caulk_note = " Caulking required (8mil+)." if needs_caulking(primary_film) else ""
-                    st.info(f"🛡️ Safety & Security film — ordered in full rolls only. Labor rate: $3.50/sqft.{caulk_note}")
-
-                st.markdown("**Complexity Factors** — check boxes for windows that have special conditions:")
-
+            # ── Complexity Factors — always visible ──
+            st.markdown("**Complexity Factors** — check any that apply to this room:")
             section_labor_total = 0.0
             complexity_summary = []
 
@@ -384,28 +389,28 @@ with tab_estimator:
                     continue
 
                 complexity_flags = {}
-
                 french_panes_count = 0
 
                 if is_active:
-                    with st.expander(
-                        f"{w_desc} — {w_qty} pane(s) @ {w_dims} = {line_sqft:.0f} sqft",
-                        expanded=False
-                    ):
-                        flag_cols = st.columns(3)
-                        flag_keys = list(COMPLEXITY_ADDERS.keys())
-                        for fi, fkey in enumerate(flag_keys):
-                            factor = COMPLEXITY_ADDERS[fkey]
-                            with flag_cols[fi % 3]:
-                                complexity_flags[fkey] = st.checkbox(
-                                    f"{factor['label']} (+${factor['adder']:.2f}/sqft)",
-                                    key=f"cx_{section_name}_{idx}_{fkey}",
-                                    help=factor["help"]
-                                )
-                        # French panes: charged per pane at $8.00/pane (not per sqft)
-                        st.markdown("**French Panes** — $8.00 per pane (enter count, not sqft):")
+                    # Window label
+                    st.markdown(
+                        f"**{w_desc}** — {w_qty} pane(s) @ {w_dims} = {line_sqft:.0f} sqft"
+                    )
+                    flag_cols = st.columns(len(COMPLEXITY_ADDERS))
+                    flag_keys = list(COMPLEXITY_ADDERS.keys())
+                    for fi, fkey in enumerate(flag_keys):
+                        factor = COMPLEXITY_ADDERS[fkey]
+                        with flag_cols[fi]:
+                            complexity_flags[fkey] = st.checkbox(
+                                f"{factor['label']} (+${factor['adder']:.2f}/sqft)",
+                                key=f"cx_{section_name}_{idx}_{fkey}",
+                                help=factor["help"]
+                            )
+                    # French panes inline
+                    fp_col1, fp_col2 = st.columns([1, 3])
+                    with fp_col1:
                         french_panes_count = st.number_input(
-                            "Number of French Panes",
+                            "French Panes ($8/pane)",
                             min_value=0,
                             max_value=500,
                             value=0,
@@ -413,6 +418,9 @@ with tab_estimator:
                             key=f"fp_{section_name}_{idx}",
                             help="Each divided pane counts as 1. Charged at $8.00/pane flat."
                         )
+                    with fp_col2:
+                        if french_panes_count > 0:
+                            st.caption(f"French pane adder: {french_panes_count} × $8.00 = ${french_panes_count * 8:.2f}")
                 else:
                     for fkey in COMPLEXITY_ADDERS.keys():
                         complexity_flags[fkey] = False
@@ -429,10 +437,16 @@ with tab_estimator:
                         f"{w_desc}: {', '.join(labor_info['active_factors'])} → ${labor_info['labor_cost']:.2f} labor"
                     )
 
+                # Accumulate job-level complexity flags
+                if complexity_flags.get("removal"):
+                    job_has_removal = True
+                if complexity_flags.get("ladder"):
+                    job_has_ladder = True
+                if french_panes_count > 0:
+                    job_has_french_panes = True
+
             # Selling price (includes labor)
-            # NOTE: min_price=0.0 here — the minimum job price is enforced at the
-            # job TOTAL level below, not per room. Passing min_job_price per section
-            # would inflate every small room to $350 individually.
+            # NOTE: min_price=0.0 here — minimum job price enforced at job TOTAL level
             pricing = calculate_selling_price(
                 best["mat_cost"],
                 section_labor_total,
@@ -443,10 +457,7 @@ with tab_estimator:
                 primary_film
             )
 
-            # Apply exterior premium to this section's sell price
             section_sell = pricing["recommended"]
-            if exterior_premium_pct > 0:
-                section_sell = round(section_sell * (1 + exterior_premium_pct / 100), 2)
 
             # Go/No-Go for this section
             section_decision = go_nogo_decision(
@@ -465,17 +476,32 @@ with tab_estimator:
                 active_job_labor += section_labor_total
                 active_job_sell += section_sell
 
-            # Accumulate job-level complexity flags
-            for idx2, window_row2 in enumerate(section_windows):
-                for fkey in COMPLEXITY_ADDERS.keys():
-                    flag_val = st.session_state.get(f"cx_{section_name}_{idx2}_{fkey}", False)
-                    if fkey == "removal" and flag_val:
-                        job_has_removal = True
-                    if fkey == "ladder" and flag_val:
-                        job_has_ladder = True
-                fp_val = st.session_state.get(f"fp_{section_name}_{idx2}", 0)
-                if fp_val and int(fp_val) > 0:
-                    job_has_french_panes = True
+                # Accumulate consolidated orders
+                order_key = (film_display, best["roll"])
+                if order_key not in consolidated_orders:
+                    consolidated_orders[order_key] = {
+                        "film": film_display,
+                        "roll": best["roll"],
+                        "lf": 0.0,
+                        "method": best["order_method"],
+                        "mat_cost": 0.0,
+                    }
+                consolidated_orders[order_key]["lf"] += best["order_lf"]
+                consolidated_orders[order_key]["mat_cost"] += best["mat_cost"]
+
+                # Accumulate cut rows
+                for ridx, row in enumerate(best["rows"], start=1):
+                    pane_text = " + ".join([f"{p['width']}×{p['height']}" for p in row["panes"]])
+                    consolidated_cut_rows.append({
+                        "Room": section_name,
+                        "Film": primary_film,
+                        f'Roll Width': f'{best["roll"]}"',
+                        "Row": ridx,
+                        "Panes": pane_text,
+                        "Used Width": f'{row["used_width"]}"',
+                        "Pull To": f'{row["pull_to"]}"',
+                        "Lanes": row["lanes"],
+                    })
 
             section_results[section_name] = {
                 "error": False,
@@ -493,8 +519,10 @@ with tab_estimator:
                 "pricing": pricing,
                 "comparison": comparison,
                 "complexity_summary": complexity_summary,
+                "labor_base_rate": pricing["labor_cost"],  # from calculate_selling_price
             }
 
+            # ── Section Result Card ──
             if is_active:
                 info_col, price_col = st.columns([2, 1])
 
@@ -504,8 +532,6 @@ with tab_estimator:
                         rate_display = f"${rate['btf_base']:.2f}/LF base + ${rate['btf_fee']:.2f}/LF fee"
                     else:
                         rate_display = "Full roll only"
-                    st.markdown(f"**Dealer Rate ({best['roll']}\" roll):** {rate_display}")
-                    st.markdown(f"**Best Roll Width:** {best['roll']}\"  |  **Order:** {best['order_lf']} LF")
 
                     order_method_label = {
                         "by_the_foot": "By the Foot",
@@ -514,12 +540,22 @@ with tab_estimator:
                         "estimate": "Estimated"
                     }.get(best["order_method"], best["order_method"])
 
-                    st.markdown(f"**Order Method:** {order_method_label}")
-                    st.markdown(f"**Material Cost:** ${best['mat_cost']:.2f}  |  **Labor Cost:** ${section_labor_total:.2f}")
-                    st.markdown(f"**Total Job Cost:** ${pricing['total_cost']:.2f}")
+                    st.markdown(f"**Dealer Rate ({best['roll']}\" roll):** {rate_display}")
+                    st.markdown(f"**Best Roll Width:** {best['roll']}\"  |  **Order:** {best['order_lf']} LF  ({order_method_label})")
 
-                    if exterior_premium_pct > 0:
-                        st.caption(f"Exterior premium ({exterior_premium_pct:.0f}%) applied to sell price.")
+                    # Labor display — explicit base rate breakdown
+                    base_labor = section_sqft * 3.0  # base $3/sqft before adders
+                    adder_labor = section_labor_total - base_labor
+                    labor_breakdown = f"${section_sqft} sqft × $3.00/sqft = ${base_labor:.2f}"
+                    if adder_labor > 0.01:
+                        labor_breakdown += f" + ${adder_labor:.2f} complexity adders"
+
+                    st.markdown(
+                        f"**Material Cost:** ${best['mat_cost']:.2f}  |  "
+                        f"**Labor Cost:** ${section_labor_total:.2f}"
+                    )
+                    st.caption(f"Labor breakdown: {labor_breakdown}")
+                    st.markdown(f"**Total Section Cost:** ${pricing['total_cost']:.2f}")
 
                     if best.get("full_roll_savings"):
                         st.success(f"💡 Full roll saves ${best['full_roll_savings']:.2f} vs. by-the-foot.")
@@ -546,10 +582,6 @@ with tab_estimator:
                     st.caption(f"Margin-based: ${pricing['margin_price']:,.2f}")
                     st.caption(f"Floor ({pricing['floor_per_sqft']:.2f}/sqft): ${pricing['floor_price']:,.2f}")
 
-                order_lines.append(
-                    f"{film_display} — {best['roll']}\" × {best['order_lf']} LF ({order_method_label})"
-                )
-
                 with st.expander(f"Roll width comparison — {section_name}"):
                     for item in comparison:
                         marker = " ✅ best" if item["roll"] == best["roll"] else ""
@@ -565,59 +597,57 @@ with tab_estimator:
                             f"Cost: ${item['mat_cost']:.2f}{savings_note}{marker}"
                         )
 
-                with st.expander(f"Pull rows — {section_name}"):
-                    for ridx, row in enumerate(best["rows"], start=1):
-                        pane_text = " + ".join([f"{p['width']}×{p['height']}" for p in row["panes"]])
-                        st.write(
-                            f"Row {ridx}: {pane_text} | "
-                            f"Used Width: {row['used_width']}\" | "
-                            f"Pull to: {row['pull_to']}\" | "
-                            f"Lanes: {row['lanes']}"
-                        )
-
-                st.divider()
-
-        # ─────────────────────────────────────────────
-        # Order Summary
-        # ─────────────────────────────────────────────
-        if order_lines:
-            st.subheader("🛒 Order This")
-            for line in order_lines:
-                st.markdown(f"- {line}")
-            if caulking_lf > 0:
-                st.markdown(f"- Caulking: {caulking_lf:.0f} LF")
-            if equipment_rental > 0:
-                st.markdown(f"- Equipment Rental: ${equipment_rental:,.2f}")
-
-            # ── Free Shipping Check ──────────────────
-            supplier_totals: dict = {}
-            for sname, res in section_results.items():
-                if res.get("error") or not res.get("is_active"):
-                    continue
-                supplier = get_supplier(res["primary_film"])
-                supplier_totals[supplier] = supplier_totals.get(supplier, 0.0) + res["mat_cost"]
-
-            st.markdown("**Shipping Status:**")
-            for supplier, total in sorted(supplier_totals.items()):
-                threshold = 1000.0
-                if total >= threshold:
-                    st.success(f"✅ {supplier}: ${total:,.2f} — **Free shipping** (over ${threshold:,.0f})")
-                else:
-                    shortfall = round(threshold - total, 2)
-                    st.warning(f"⚠️ {supplier}: ${total:,.2f} — Add ${shortfall:,.2f} more to qualify for free shipping")
+            else:
+                # Inactive section — show a muted summary
+                st.caption(
+                    f"*(Excluded)* {film_display} — {section_sqft} sqft — "
+                    f"Est. sell: ${section_sell:,.2f}"
+                )
 
             st.divider()
 
         # ─────────────────────────────────────────
         # Job Totals Dashboard
         # ─────────────────────────────────────────
-        st.subheader("💰 Job Totals")
+        active_section_names = [
+            n for n, res in section_results.items()
+            if not res.get("error") and res.get("is_active")
+        ]
+
+        st.subheader("💰 Job Totals & Negotiation")
 
         rooms_removed = len(all_section_names) - len(active_section_names)
         showing_adjusted = rooms_removed > 0
 
         if showing_adjusted:
-            st.info(f"**{rooms_removed} room(s) removed.** Showing adjusted estimate vs. full job.")
+            st.info(f"**{rooms_removed} room(s) excluded.** Showing adjusted estimate vs. full job.")
+
+        # ── Rare Options (moved here from collapsed expander) ──
+        rare_col1, rare_col2 = st.columns(2)
+        with rare_col1:
+            equipment_rental = st.number_input(
+                "Equipment Rental ($)",
+                min_value=0.0,
+                value=0.0,
+                step=50.0,
+                help="Lift, scaffold, or other equipment rental cost. Added directly to total job cost."
+            )
+            if equipment_rental > 0:
+                st.caption(f"Equipment rental: ${equipment_rental:,.2f}")
+        with rare_col2:
+            exterior_premium_pct = st.number_input(
+                "Exterior Install Premium (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=0.0,
+                step=5.0,
+                help="Percentage markup for exterior installations. e.g., 25 adds 25% to the sell price."
+            )
+            if exterior_premium_pct > 0:
+                st.caption(f"Exterior premium: {exterior_premium_pct:.0f}% added to sell price")
+                # Apply exterior premium to active sell total
+                active_job_sell = round(active_job_sell * (1 + exterior_premium_pct / 100), 2)
+                full_job_sell = round(full_job_sell * (1 + exterior_premium_pct / 100), 2)
 
         # Add caulking and equipment rental to cost totals
         active_job_labor += caulking_cost
@@ -686,7 +716,7 @@ with tab_estimator:
             )
 
             if min_price_applied:
-                st.caption(f"ℹ️ Minimum job price of ${min_job_price:,.2f} applied to total (rooms priced individually below this threshold).")
+                st.caption(f"ℹ️ Minimum job price of ${min_job_price:,.2f} applied to total.")
 
             st.divider()
 
@@ -697,20 +727,63 @@ with tab_estimator:
             else:
                 st.error(f"🚫 **{active_decision['message']}** — Consider raising the price or declining this job.")
 
+        # ── Negotiation Override ──────────────────
+        st.divider()
+        st.markdown("#### Negotiation Override")
+        st.caption(
+            "Adjust the sell price and labor below to model negotiation scenarios. "
+            "Margin recalculates live."
+        )
+        neg_col1, neg_col2 = st.columns(2)
+        with neg_col1:
+            override_sell = st.number_input(
+                "Override Sell Price ($)",
+                min_value=0.0,
+                value=float(round(active_job_sell, 2)),
+                step=50.0,
+                key="override_sell",
+                help="Enter a custom sell price to see how it affects your margin."
+            )
+        with neg_col2:
+            override_labor = st.number_input(
+                "Override Labor Cost ($)",
+                min_value=0.0,
+                value=float(round(active_job_labor, 2)),
+                step=25.0,
+                key="override_labor",
+                help="Adjust labor cost (e.g., if using a sub at a different rate)."
+            )
+
+        override_total_cost = active_job_material + override_labor
+        if override_sell > 0:
+            override_gross = override_sell - override_total_cost
+            override_margin = round((override_gross / override_sell) * 100, 1) if override_sell > 0 else 0.0
+            neg_result_col1, neg_result_col2, neg_result_col3 = st.columns(3)
+            neg_result_col1.metric("Override Gross Profit", f"${override_gross:,.2f}")
+            neg_result_col2.metric("Override Margin", f"{override_margin:.1f}%")
+            neg_result_col3.metric("Override Total Cost", f"${override_total_cost:,.2f}")
+
+            if override_margin >= GO_NOGO_MIN_MARGIN:
+                st.success(f"✅ Override margin {override_margin:.1f}% — within target range.")
+            elif override_margin >= GO_NOGO_WARN_MARGIN:
+                st.warning(f"⚠️ Override margin {override_margin:.1f}% — below target, proceed with caution.")
+            else:
+                st.error(f"🚫 Override margin {override_margin:.1f}% — below minimum. Do not accept this price.")
+
         # ─────────────────────────────────────────
         # Daily Profit Protection Panel
         # ─────────────────────────────────────────
         st.divider()
         st.subheader("⏱️ Daily Profit Protection")
 
-        # Crew type selector
         crew_type_choice = st.radio(
             "Crew Type",
             options=["solo", "crew"],
             format_func=lambda x: "Solo (Owner Install)" if x == "solo" else "Crew (Installer + Helper)",
             horizontal=True,
             key="crew_type_radio",
-            help="Solo = 250 sqft/day ($700/day floor). Crew = 400 sqft/day ($500/day floor)."
+            help=f"Solo = {SOLO_SQFT_PER_DAY:.0f} sqft/day (${DAILY_PROFIT_FLOOR_OWNER:.0f}/day floor). "
+                 f"Crew = {CREW_SQFT_PER_DAY:.0f} sqft/day (${DAILY_PROFIT_FLOOR_SUB:.0f}/day floor)."
         )
 
         active_sqft = sum(
@@ -733,20 +806,14 @@ with tab_estimator:
         profit_gap = round(daily_profit_actual - daily_profit_floor, 2)
 
         dp_col1, dp_col2, dp_col3, dp_col4 = st.columns(4)
-        dp_col1.metric(
-            "Total Active SqFt",
-            f"{active_sqft} sqft"
-        )
+        dp_col1.metric("Total Active SqFt", f"{active_sqft} sqft")
         dp_col2.metric(
             "Production Rate",
             f"{install_info['adjusted_sqft_per_day']:,.0f} sqft/day",
-            delta=f"{install_info['base_sqft_per_day']:,.0f} base" if install_info['penalties_applied'] else None,
+            delta=f"{install_info['base_sqft_per_day']:,.0f} base" if install_info["penalties_applied"] else None,
             delta_color="off"
         )
-        dp_col3.metric(
-            "Estimated Install Days",
-            f"{install_days:.2f} days"
-        )
+        dp_col3.metric("Estimated Install Days", f"{install_days:.2f} days")
         dp_col4.metric(
             "Gross Profit / Day",
             f"${daily_profit_actual:,.2f}",
@@ -755,18 +822,34 @@ with tab_estimator:
         )
 
         if install_info["penalties_applied"]:
-            st.caption("Production penalties applied: " + " | ".join(install_info["penalties_applied"]))
+            penalty_parts = []
+            if job_has_removal:
+                penalty_parts.append("Film Removal (−30% production)")
+            if job_has_ladder:
+                penalty_parts.append("Ladder/High Work (−15% production)")
+            if job_has_french_panes:
+                penalty_parts.append("French Panes (−10% production)")
+            st.caption("Production penalties applied: " + " | ".join(penalty_parts))
 
         # Daily profit verdict
         if daily_profit_actual >= daily_profit_floor:
             gap_msg = f"+${profit_gap:,.2f}/day above floor"
-            st.success(f"✅ **DAILY PROFIT: GO** — ${daily_profit_actual:,.2f}/day vs. ${daily_profit_floor:,.0f}/day floor ({gap_msg})")
+            st.success(
+                f"✅ **DAILY PROFIT: GO** — ${daily_profit_actual:,.2f}/day vs. "
+                f"${daily_profit_floor:,.0f}/day floor ({gap_msg})"
+            )
         elif daily_profit_actual >= daily_profit_floor * 0.90:
             gap_msg = f"${abs(profit_gap):,.2f}/day below floor"
-            st.warning(f"⚠️ **DAILY PROFIT: CAUTION** — ${daily_profit_actual:,.2f}/day vs. ${daily_profit_floor:,.0f}/day floor ({gap_msg}). Raise price or reduce scope.")
+            st.warning(
+                f"⚠️ **DAILY PROFIT: CAUTION** — ${daily_profit_actual:,.2f}/day vs. "
+                f"${daily_profit_floor:,.0f}/day floor ({gap_msg}). Raise price or reduce scope."
+            )
         else:
             gap_msg = f"${abs(profit_gap):,.2f}/day below floor"
-            st.error(f"🚫 **DAILY PROFIT: NO-GO** — ${daily_profit_actual:,.2f}/day vs. ${daily_profit_floor:,.0f}/day floor ({gap_msg}). This job does not meet your Profit Floor.")
+            st.error(
+                f"🚫 **DAILY PROFIT: NO-GO** — ${daily_profit_actual:,.2f}/day vs. "
+                f"${daily_profit_floor:,.0f}/day floor ({gap_msg}). This job does not meet your Profit Floor."
+            )
 
         # ── Section Summary Table ────────────────
         st.divider()
@@ -795,6 +878,67 @@ with tab_estimator:
 
         if summary_rows:
             st.dataframe(summary_rows, use_container_width=True)
+
+        # ─────────────────────────────────────────────
+        # Consolidated Material Order & Cut Sheet
+        # ─────────────────────────────────────────────
+        st.divider()
+        st.subheader("🛒 Material Order Summary")
+        st.caption("Consolidated across all active rooms. Order these quantities from your supplier.")
+
+        if consolidated_orders:
+            order_rows = []
+            for (film, roll), data in sorted(consolidated_orders.items()):
+                method_label = {
+                    "by_the_foot": "By the Foot",
+                    "full_roll": "Full 100 LF Roll",
+                    "50lf_roll": "50 LF Roll",
+                    "estimate": "Estimated"
+                }.get(data["method"], data["method"])
+                order_rows.append({
+                    "Film": film,
+                    "Roll Width": f'{roll}"',
+                    "Total LF": f"{data['lf']:.1f} LF",
+                    "Order Method": method_label,
+                    "Material Cost": f"${data['mat_cost']:.2f}",
+                })
+            st.dataframe(order_rows, use_container_width=True)
+
+            if caulking_lf > 0:
+                st.markdown(f"- **Caulking:** {caulking_lf:.0f} LF")
+            if equipment_rental > 0:
+                st.markdown(f"- **Equipment Rental:** ${equipment_rental:,.2f}")
+
+            # ── Free Shipping Check ──────────────────
+            supplier_totals: dict = {}
+            for sname, res in section_results.items():
+                if res.get("error") or not res.get("is_active"):
+                    continue
+                supplier = get_supplier(res["primary_film"])
+                supplier_totals[supplier] = supplier_totals.get(supplier, 0.0) + res["mat_cost"]
+
+            if supplier_totals:
+                st.markdown("**Shipping Status:**")
+                for supplier, total in sorted(supplier_totals.items()):
+                    threshold = 1000.0
+                    if total >= threshold:
+                        st.success(f"✅ {supplier}: ${total:,.2f} — **Free shipping** (over ${threshold:,.0f})")
+                    else:
+                        shortfall = round(threshold - total, 2)
+                        st.warning(
+                            f"⚠️ {supplier}: ${total:,.2f} — "
+                            f"Add ${shortfall:,.2f} more to qualify for free shipping"
+                        )
+
+        # ── Consolidated Cut Sheet ───────────────
+        if consolidated_cut_rows:
+            st.divider()
+            st.subheader("✂️ Cut Sheet — All Rooms")
+            st.caption(
+                "Pull rows for all active rooms. Each row = one pull from the roll. "
+                "Sorted by room and row number."
+            )
+            st.dataframe(consolidated_cut_rows, use_container_width=True)
 
         # ── Persist results to session state for Proposal tab ──
         st.session_state["section_results"] = section_results
@@ -829,7 +973,6 @@ with tab_proposal:
         prop_col1, prop_col2 = st.columns(2)
 
         with prop_col1:
-            import datetime as _dt
             default_prop_num = f"ECWF-{_dt.date.today().strftime('%Y%m%d')}-001"
             proposal_number = st.text_input(
                 "Proposal Number",
@@ -904,7 +1047,6 @@ with tab_proposal:
         st.divider()
 
         if st.button("⬇️ Generate & Download PDF Proposal", type="primary", use_container_width=True):
-            import os as _os
             logo_path = _os.path.join(_os.path.dirname(__file__), "ecwf_logo.png")
             with st.spinner("Building your proposal PDF..."):
                 try:
@@ -918,7 +1060,7 @@ with tab_proposal:
                         proposal_number=proposal_number,
                         valid_days=int(valid_days),
                         scope_notes=scope_notes,
-                        terms_notes=terms_notes if 'terms_notes' in dir() else "",
+                        terms_notes=terms_notes if "terms_notes" in dir() else "",
                         logo_path=logo_path,
                     )
                     client_name_safe = (_client.get("name") or "Proposal").replace(" ", "_")
@@ -941,8 +1083,6 @@ with tab_proposal:
 # ═════════════════════════════════════════════
 with tab_lookup:
     st.subheader("🔍 Film Price Lookup")
-
-    import re as _re
 
     # ── Helper: build rate table rows for a list of film names (one row per width) ──
     def _build_rate_rows(film_list):
@@ -1088,8 +1228,6 @@ with tab_lookup:
                 st.warning("No films match that filter.")
             else:
                 st.dataframe(_build_rate_rows(mfr_films), use_container_width=True)
-
-
 
     # ── Quick Cost Calculator ──────────────────
     st.divider()

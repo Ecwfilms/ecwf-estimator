@@ -718,7 +718,9 @@ PRICE_FLOORS_PER_SQFT: Dict[str, float] = {
 }
 
 # Production baseline: solo installer residential (sqft/day)
-SOLO_INSTALLER_SQFT_PER_DAY = 300
+# NOTE: This constant is used by calculate_selling_price() for the production-based price floor.
+# Must match SOLO_SQFT_PER_DAY defined in the Daily Profit Protection block below.
+SOLO_INSTALLER_SQFT_PER_DAY = 250
 
 # =============================================================================
 # SUPPLIER METADATA
@@ -1218,7 +1220,7 @@ def calculate_selling_price(
     floor_per_sqft = get_price_floor(film_name)
     floor_price = round(floor_per_sqft * section_sqft, 2)
 
-    days_needed = section_sqft / SOLO_INSTALLER_SQFT_PER_DAY
+    days_needed = section_sqft / SOLO_SQFT_PER_DAY
     production_price = round(days_needed * daily_revenue, 2)
 
     recommended = max(margin_price, floor_price, production_price, min_price)
