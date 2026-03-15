@@ -851,6 +851,77 @@ FRENCH_PANE_RATE = 8.00
 GO_NOGO_MIN_MARGIN = 40.0      # Red below this
 GO_NOGO_WARN_MARGIN = 45.0     # Yellow between min and warn
 
+# =============================================================================
+# PRODUCTION RATE & DAILY PROFIT CONSTANTS
+# =============================================================================
+# Base production rates (sqft per day)
+SOLO_SQFT_PER_DAY  = 250.0   # Owner solo install
+CREW_SQFT_PER_DAY  = 400.0   # Installer + helper
+
+# Complexity production penalties (multiplicative — applied in sequence)
+PRODUCTION_PENALTY_REMOVAL     = 0.70   # Film removal:    -30% production
+PRODUCTION_PENALTY_LADDER      = 0.85   # Ladder/high work: -15% production
+PRODUCTION_PENALTY_FRENCH      = 0.90   # French panes:    -10% production
+
+# Daily profit floors (gross profit per install day)
+DAILY_PROFIT_FLOOR_OWNER = 700.0   # Solo / owner-installed
+DAILY_PROFIT_FLOOR_SUB   = 500.0   # Sub-contracted installer
+
+
+def calculate_install_days(
+    total_sqft: float,
+    has_removal: bool = False,
+    has_ladder: bool = False,
+    has_french_panes: bool = False,
+    crew_type: str = "solo",
+) -> Dict[str, Any]:
+    """
+    Calculate estimated installation days based on production rates and
+    complexity penalties.
+
+    Args:
+        total_sqft:       Total square footage for the job.
+        has_removal:      True if any window has film removal.
+        has_ladder:       True if any window requires ladder/high work.
+        has_french_panes: True if any window has french panes.
+        crew_type:        "solo" (owner) or "crew" (installer + helper).
+
+    Returns:
+        Dict with:
+            base_sqft_per_day:     Unadjusted production rate.
+            adjusted_sqft_per_day: After applying complexity penalties.
+            install_days:          Estimated days on site (rounded to 2 decimals).
+            penalties_applied:     List of penalty descriptions.
+            crew_type:             "solo" or "crew".
+            daily_profit_floor:    The applicable daily profit floor ($700 or $500).
+    """
+    base = SOLO_SQFT_PER_DAY if crew_type == "solo" else CREW_SQFT_PER_DAY
+    adjusted = base
+    penalties: List[str] = []
+
+    if has_removal:
+        adjusted *= PRODUCTION_PENALTY_REMOVAL
+        penalties.append(f"Film Removal (−30% production)")
+    if has_ladder:
+        adjusted *= PRODUCTION_PENALTY_LADDER
+        penalties.append(f"Ladder / High Work (−15% production)")
+    if has_french_panes:
+        adjusted *= PRODUCTION_PENALTY_FRENCH
+        penalties.append(f"French Panes (−10% production)")
+
+    adjusted = round(adjusted, 2)
+    install_days = round(total_sqft / adjusted, 2) if adjusted > 0 else 0.0
+    floor = DAILY_PROFIT_FLOOR_OWNER if crew_type == "solo" else DAILY_PROFIT_FLOOR_SUB
+
+    return {
+        "base_sqft_per_day":     base,
+        "adjusted_sqft_per_day": adjusted,
+        "install_days":          install_days,
+        "penalties_applied":     penalties,
+        "crew_type":             crew_type,
+        "daily_profit_floor":    floor,
+    }
+
 
 def is_full_roll_only(film_name: str) -> bool:
     """Return True if this film must be ordered in full rolls only."""

@@ -312,6 +312,11 @@ with tab_estimator:
 
         section_results = {}
 
+        # Job-level complexity flags for install days calculation
+        job_has_removal = False
+        job_has_ladder = False
+        job_has_french_panes = False
+
         for section_name, section_windows in section_groups.items():
             section_panes = expand_windows(section_windows)
             film_names = sorted(list(set([w["film"] for w in section_windows])))
@@ -456,6 +461,18 @@ with tab_estimator:
                 active_job_material += best["mat_cost"]
                 active_job_labor += section_labor_total
                 active_job_sell += section_sell
+
+            # Accumulate job-level complexity flags
+            for idx2, window_row2 in enumerate(section_windows):
+                for fkey in COMPLEXITY_ADDERS.keys():
+                    flag_val = st.session_state.get(f"cx_{section_name}_{idx2}_{fkey}", False)
+                    if fkey == "removal" and flag_val:
+                        job_has_removal = True
+                    if fkey == "ladder" and flag_val:
+                        job_has_ladder = True
+                fp_val = st.session_state.get(f"fp_{section_name}_{idx2}", 0)
+                if fp_val and int(fp_val) > 0:
+                    job_has_french_panes = True
 
             section_results[section_name] = {
                 "error": False,
@@ -668,6 +685,77 @@ with tab_estimator:
                 st.warning(f"⚠️ **{active_decision['message']}** — Gross Profit: ${active_decision['gross_profit']:,.2f}")
             else:
                 st.error(f"🚫 **{active_decision['message']}** — Consider raising the price or declining this job.")
+
+        # ─────────────────────────────────────────
+        # Daily Profit Protection Panel
+        # ─────────────────────────────────────────
+        st.divider()
+        st.subheader("⏱️ Daily Profit Protection")
+
+        # Crew type selector
+        crew_type_choice = st.radio(
+            "Crew Type",
+            options=["solo", "crew"],
+            format_func=lambda x: "Solo (Owner Install)" if x == "solo" else "Crew (Installer + Helper)",
+            horizontal=True,
+            key="crew_type_radio",
+            help="Solo = 250 sqft/day ($700/day floor). Crew = 400 sqft/day ($500/day floor)."
+        )
+
+        active_sqft = sum(
+            res["sqft"] for res in section_results.values()
+            if not res.get("error") and res.get("is_active")
+        )
+
+        install_info = calculate_install_days(
+            total_sqft=active_sqft,
+            has_removal=job_has_removal,
+            has_ladder=job_has_ladder,
+            has_french_panes=job_has_french_panes,
+            crew_type=crew_type_choice,
+        )
+
+        active_gross_profit = active_job_sell - active_total_cost
+        install_days = install_info["install_days"]
+        daily_profit_floor = install_info["daily_profit_floor"]
+        daily_profit_actual = round(active_gross_profit / install_days, 2) if install_days > 0 else 0.0
+        profit_gap = round(daily_profit_actual - daily_profit_floor, 2)
+
+        dp_col1, dp_col2, dp_col3, dp_col4 = st.columns(4)
+        dp_col1.metric(
+            "Total Active SqFt",
+            f"{active_sqft} sqft"
+        )
+        dp_col2.metric(
+            "Production Rate",
+            f"{install_info['adjusted_sqft_per_day']:,.0f} sqft/day",
+            delta=f"{install_info['base_sqft_per_day']:,.0f} base" if install_info['penalties_applied'] else None,
+            delta_color="off"
+        )
+        dp_col3.metric(
+            "Estimated Install Days",
+            f"{install_days:.2f} days"
+        )
+        dp_col4.metric(
+            "Gross Profit / Day",
+            f"${daily_profit_actual:,.2f}",
+            delta=f"Floor: ${daily_profit_floor:,.0f}/day",
+            delta_color="off"
+        )
+
+        if install_info["penalties_applied"]:
+            st.caption("Production penalties applied: " + " | ".join(install_info["penalties_applied"]))
+
+        # Daily profit verdict
+        if daily_profit_actual >= daily_profit_floor:
+            gap_msg = f"+${profit_gap:,.2f}/day above floor"
+            st.success(f"✅ **DAILY PROFIT: GO** — ${daily_profit_actual:,.2f}/day vs. ${daily_profit_floor:,.0f}/day floor ({gap_msg})")
+        elif daily_profit_actual >= daily_profit_floor * 0.90:
+            gap_msg = f"${abs(profit_gap):,.2f}/day below floor"
+            st.warning(f"⚠️ **DAILY PROFIT: CAUTION** — ${daily_profit_actual:,.2f}/day vs. ${daily_profit_floor:,.0f}/day floor ({gap_msg}). Raise price or reduce scope.")
+        else:
+            gap_msg = f"${abs(profit_gap):,.2f}/day below floor"
+            st.error(f"🚫 **DAILY PROFIT: NO-GO** — ${daily_profit_actual:,.2f}/day vs. ${daily_profit_floor:,.0f}/day floor ({gap_msg}). This job does not meet your Profit Floor.")
 
         # ── Section Summary Table ────────────────
         st.divider()
