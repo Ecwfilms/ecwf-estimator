@@ -430,13 +430,16 @@ with tab_estimator:
                     )
 
             # Selling price (includes labor)
+            # NOTE: min_price=0.0 here — the minimum job price is enforced at the
+            # job TOTAL level below, not per room. Passing min_job_price per section
+            # would inflate every small room to $350 individually.
             pricing = calculate_selling_price(
                 best["mat_cost"],
                 section_labor_total,
                 section_sqft,
                 target_margin,
                 daily_revenue_target,
-                min_job_price,
+                0.0,
                 primary_film
             )
 
@@ -625,6 +628,11 @@ with tab_estimator:
         active_total_cost = active_job_material + active_job_labor
         full_total_cost = full_job_material + full_job_labor
 
+        # Apply minimum job price at the TOTAL job level (not per room)
+        min_price_applied = active_job_sell < min_job_price
+        active_job_sell = max(active_job_sell, min_job_price)
+        full_job_sell = max(full_job_sell, min_job_price)
+
         active_decision = go_nogo_decision(active_job_sell, active_total_cost)
         full_decision = go_nogo_decision(full_job_sell, full_total_cost)
 
@@ -676,6 +684,9 @@ with tab_estimator:
                 f"${active_job_sell:,.2f}",
                 delta=f"+${active_job_sell - active_total_cost:,.2f} gross"
             )
+
+            if min_price_applied:
+                st.caption(f"ℹ️ Minimum job price of ${min_job_price:,.2f} applied to total (rooms priced individually below this threshold).")
 
             st.divider()
 
