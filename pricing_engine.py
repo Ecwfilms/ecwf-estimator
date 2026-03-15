@@ -336,86 +336,6 @@ FILM_RATES: Dict[str, Dict[int, Dict[str, float]]] = {
         40: {"btf_base": 1.27, "btf_fee": 0.505, "roll_100lf": 589.00},
         60: {"btf_base": 7.39, "btf_fee": 0.505, "roll_100lf": None},
     },
-    "SXF-5050": {
-        60: {"btf_base": 9.36, "btf_fee": 0.0, "roll_100lf": 936.00},
-    },
-    "SXF-5060": {
-        60: {"btf_base": 9.36, "btf_fee": 0.0, "roll_100lf": 936.00},
-    },
-    "SXF-5070": {
-        60: {"btf_base": 9.36, "btf_fee": 0.0, "roll_100lf": 936.00},
-    },
-    "SXF-5080": {
-        60: {"btf_base": 9.36, "btf_fee": 0.0, "roll_100lf": 936.00},
-    },
-    "SXB-001": {
-        48: {"btf_base": 12.11, "btf_fee": 0.0, "roll_100lf": 1211.25},
-    },
-    "SXB-002": {
-        48: {"btf_base": 12.11, "btf_fee": 0.0, "roll_100lf": 1211.25},
-    },
-    "SXO Colored Frosted": {
-        48: {"btf_base": 7.81, "btf_fee": 0.0, "roll_100lf": None, "roll_150lf": 1171.80},
-    },
-    "SXP Colored Frosted": {
-        60: {"btf_base": 10.26, "btf_fee": 0.0, "roll_100lf": 1025.85},
-    },
-    "SXG Geometric": {
-        60: {"btf_base": 10.26, "btf_fee": 0.0, "roll_100lf": 1025.85},
-    },
-    "SXN Organic": {
-        60: {"btf_base": 10.26, "btf_fee": 0.0, "roll_100lf": 1025.85},
-    },
-    "UltraSafe 2mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 318.15, "roll_50lf": None},
-    },
-    "UltraSafe 4mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 431.55, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 517.65, "roll_50lf": None},
-    },
-    "UltraSafe 8mil": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 572.25, "roll_50lf": None},
-    },
-    "UltraSafe White Matte": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 813.75, "roll_50lf": None},
-    },
-    "UltraCool Silver 15": {
-        60: {"btf_base": 4.01, "btf_fee": 0.0, "roll_100lf": 401.10},
-    },
-    "UltraCool Silver 35": {
-        60: {"btf_base": 4.01, "btf_fee": 0.0, "roll_100lf": 401.10},
-    },
-    "UltraCool Silver 60": {
-        60: {"btf_base": 4.01, "btf_fee": 0.0, "roll_100lf": 401.10},
-    },
-    "UltraCool Blue Silver": {
-        60: {"btf_base": 4.67, "btf_fee": 0.0, "roll_100lf": 467.25},
-    },
-    "UltraCool IR83": {
-        60: {"btf_base": 7.05, "btf_fee": 0.0, "roll_100lf": 704.55},
-    },
-    "UltraCool Solar Bronze": {
-        60: {"btf_base": 10.27, "btf_fee": 0.0, "roll_100lf": 1026.90},
-    },
-    "BSF Solar Bird Safety": {
-        60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 2084.25, "roll_50lf": None},
-        72: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 2501.10, "roll_50lf": None},
-    },
-    "SX-STPF Sea Turtle": {
-        60: {"btf_base": 7.72, "btf_fee": 0.0, "roll_100lf": 756.32},
-    },
-    "SGC Simulated Glass": {
-        59: {"btf_base": 22.84, "btf_fee": 0.0, "roll_100lf": 2283.75},
-    },
-    "SXI Gradient": {
-        60: {"btf_base": 13.18, "btf_fee": 0.0, "roll_100lf": 1317.75},
-        71: {"btf_base": 29.60, "btf_fee": 0.0, "roll_100lf": 2900.75},
-    },
-    "SX-7876 Chalkboard": {
-        36: {"btf_base": 5.75, "btf_fee": 0.0, "roll_100lf": None},
-        48: {"btf_base": 9.61, "btf_fee": 0.0, "roll_100lf": None},
-        72: {"btf_base": 11.66, "btf_fee": 0.0, "roll_100lf": None},
-    },
     "Twilight 35": {
         48: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 800.00, "roll_50lf": 440.00},
         60: {"btf_base": None, "btf_fee": 0.0, "roll_100lf": 1000.00, "roll_50lf": 550.00},
@@ -786,7 +706,6 @@ PRICE_FLOORS_PER_SQFT: Dict[str, float] = {
     "blackout":       6.00,
     "whiteout":       6.00,
     "sxf":            8.00,
-    "solyx":          8.00,
     "ultrasafe":      8.00,
     "ultracool":      7.50,
     "sxo":            8.00,
@@ -809,7 +728,6 @@ SOLO_INSTALLER_SQFT_PER_DAY = 300
 SUPPLIER_FREE_SHIPPING: Dict[str, float] = {
     "Edge":           1000.00,
     "Huper Optik":    1000.00,
-    "Solyx":          1000.00,
     "ASWF":           1000.00,
 }
 
@@ -826,11 +744,6 @@ SUPPLIER_KEYWORDS: Dict[str, List[str]] = {
         "select sech", "select drei", "huper fusion", "huper bronze", "huper silver",
         "huper whiteout", "huper blackout", "dusted crystal", "clearshield",
         "xtreme pro", "xtreme ceramic", "huper",
-    ],
-    "Solyx": [
-        "sxf", "sxo", "sxp", "sxb", "sxg", "sxn", "sxi", "sgc", "sx-stpf",
-        "sx-7876", "chalkboard", "sea turtle",
-        "ultrasafe", "bsf solar", "solyx", "ultracool",
     ],
     "ASWF": [
         "aswf",
@@ -853,10 +766,6 @@ def get_supplier(film_name: str) -> str:
     # Huper Optik: check before Edge to prevent 'silver'/'bronze' collision
     if any(kw in film_lower for kw in SUPPLIER_KEYWORDS["Huper Optik"]):
         return "Huper Optik"
-
-    # Solyx
-    if any(kw in film_lower for kw in SUPPLIER_KEYWORDS["Solyx"]):
-        return "Solyx"
 
     # Edge (catch-all for remaining known Edge products)
     if any(kw in film_lower for kw in SUPPLIER_KEYWORDS["Edge"]):

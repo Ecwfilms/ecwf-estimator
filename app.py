@@ -122,7 +122,7 @@ with st.sidebar:
         st.caption("No worksheet loaded.")
 
     st.divider()
-    st.caption("Film costs loaded from Edge, Huper Optik, and Solyx/Decorative Films. Verified Mar 2026.")
+    st.caption("Film costs loaded from Edge, Huper Optik, and ASWF. Verified Mar 2026.")
 
 # ─────────────────────────────────────────────
 # Tabs
@@ -845,40 +845,38 @@ with tab_lookup:
 
     import re as _re
 
-    # ── Helper: build rate table rows for a list of film names ──────────────
+    # ── Helper: build rate table rows for a list of film names (one row per width) ──
     def _build_rate_rows(film_list):
         rows = []
         for film_name in film_list:
             widths = FILM_RATES[film_name]
-            avail_widths = ", ".join(f'{w}"' for w in sorted(widths.keys()))
-            # Collect one representative rate (cheapest / narrowest width)
-            first_w = sorted(widths.keys())[0]
-            first_r = widths[first_w]
-            price_sqft = first_r.get("price_sqft")
-            btf_base = first_r.get("btf_base")
-            btf_fee = first_r.get("btf_fee", 0)
-            roll_100 = first_r.get("roll_100lf")
-            roll_50 = first_r.get("roll_50lf")
-
-            if price_sqft is not None:
-                rate_display = f"${price_sqft:.2f}/sqft"
-            elif btf_base is not None:
-                rate_display = f"${round(btf_base + btf_fee, 3):.3f}/LF"
-            else:
-                rate_display = "Full roll only"
-
-            roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
-            roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
             safety_flag = "🛡️" if film_name in CAULKING_FILMS else ""
+            for w, rates in sorted(widths.items()):
+                price_sqft = rates.get("price_sqft")
+                btf_base = rates.get("btf_base")
+                btf_fee = rates.get("btf_fee", 0)
+                roll_100 = rates.get("roll_100lf")
+                roll_50 = rates.get("roll_50lf")
 
-            rows.append({
-                "Film": film_name,
-                "Widths Available": avail_widths,
-                "Dealer Rate": rate_display,
-                "100 LF Roll": roll_100_display,
-                "50 LF Roll": roll_50_display,
-                "Safety": safety_flag,
-            })
+                if price_sqft is not None:
+                    rate_per_lf = round(price_sqft * (w / 12.0), 3)
+                    rate_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF)"
+                elif btf_base is not None:
+                    rate_display = f"${round(btf_base + btf_fee, 3):.3f}/LF"
+                else:
+                    rate_display = "Full roll only"
+
+                roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
+                roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
+
+                rows.append({
+                    "Film": film_name,
+                    "Width": f'{w}"',
+                    "Dealer Rate": rate_display,
+                    "100 LF Roll": roll_100_display,
+                    "50 LF Roll": roll_50_display,
+                    "Safety": safety_flag,
+                })
         return rows
 
     # ── Helper: build dimension-cost rows for a list of film names ───────────
@@ -929,7 +927,7 @@ with tab_lookup:
         "🔎 Search all films (name, code, or WxH film)",
         placeholder="e.g., Daydream 25   or   60x48 ASWF Nature 20   or   Guardian 8mil",
         key="lookup_global_search",
-        help="Searches across Edge, Huper Optik, Solyx, and ASWF simultaneously."
+        help="Searches across Edge, Huper Optik, and ASWF simultaneously."
     )
 
     all_film_names_global = sorted(FILM_RATES.keys())
@@ -959,14 +957,13 @@ with tab_lookup:
 
     # ── Manufacturer Sub-Tabs ────────────────────────────────────────────────
     st.markdown("**Browse by Manufacturer**")
-    mfr_tab_edge, mfr_tab_huper, mfr_tab_solyx, mfr_tab_aswf = st.tabs(
-        ["🏷️ Edge", "🏷️ Huper Optik", "🏷️ Solyx", "🏷️ ASWF"]
+    mfr_tab_edge, mfr_tab_huper, mfr_tab_aswf = st.tabs(
+        ["🏷️ Edge", "🏷️ Huper Optik", "🏷️ ASWF"]
     )
 
     MANUFACTURER_TABS = {
         "Edge": mfr_tab_edge,
         "Huper Optik": mfr_tab_huper,
-        "Solyx": mfr_tab_solyx,
         "ASWF": mfr_tab_aswf,
     }
 
@@ -993,35 +990,7 @@ with tab_lookup:
             else:
                 st.dataframe(_build_rate_rows(mfr_films), use_container_width=True)
 
-            # Per-width detail expander
-            with st.expander(f"📐 Show per-width rates for all {mfr_name} films", expanded=False):
-                detail_rows = []
-                for film_name in mfr_films:
-                    widths = FILM_RATES[film_name]
-                    for width, rates in sorted(widths.items()):
-                        btf_base = rates.get("btf_base")
-                        btf_fee = rates.get("btf_fee", 0)
-                        roll_100 = rates.get("roll_100lf")
-                        roll_50 = rates.get("roll_50lf")
-                        price_sqft = rates.get("price_sqft")
-                        if price_sqft is not None:
-                            rate_per_lf = round(price_sqft * (width / 12.0), 4)
-                            btf_display = f"${price_sqft:.2f}/sqft (${rate_per_lf:.3f}/LF)"
-                        elif btf_base is not None:
-                            btf_display = f"${round(btf_base + btf_fee, 4):.4f}/LF"
-                        else:
-                            btf_display = "Full roll only"
-                        roll_100_display = f"${roll_100:,.2f}" if roll_100 else "—"
-                        roll_50_display = f"${roll_50:,.2f}" if roll_50 else "—"
-                        detail_rows.append({
-                            "Film": film_name,
-                            "Width": f'{width}"',
-                            "Dealer Rate": btf_display,
-                            "100 LF Roll": roll_100_display,
-                            "50 LF Roll": roll_50_display,
-                        })
-                if detail_rows:
-                    st.dataframe(detail_rows, use_container_width=True)
+
 
     # ── Quick Cost Calculator ──────────────────
     st.divider()
