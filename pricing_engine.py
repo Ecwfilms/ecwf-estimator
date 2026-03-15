@@ -819,7 +819,7 @@ SUPPLIER_KEYWORDS: Dict[str, List[str]] = {
         "ultraview", "reform", "cool alloy", "coal alloy", "silver", "bronze",
         "nature", "pristine", "x series", "guardian", "cs 4mil", "cs 8mil",
         "cs 14mil", "shield 35", "frost", "blackout", "whiteout",
-        "clear defense",
+        "clear defense", "twilight",
     ],
     "Huper Optik": [
         "klar", "huper ceramic", "multi-layer", "single layer", "dark ceramic",
@@ -839,11 +839,29 @@ SUPPLIER_KEYWORDS: Dict[str, List[str]] = {
 
 
 def get_supplier(film_name: str) -> str:
-    """Identify which supplier a film belongs to."""
+    """
+    Identify which supplier a film belongs to.
+    ASWF is checked first (prefix match) to prevent keyword collisions
+    with Edge/Huper films that share words like 'nature', 'frost', 'silver'.
+    """
     film_lower = film_name.lower()
-    for supplier, keywords in SUPPLIER_KEYWORDS.items():
-        if any(kw in film_lower for kw in keywords):
-            return supplier
+
+    # ASWF: always starts with 'aswf ' — check first to avoid collisions
+    if film_lower.startswith("aswf"):
+        return "ASWF"
+
+    # Huper Optik: check before Edge to prevent 'silver'/'bronze' collision
+    if any(kw in film_lower for kw in SUPPLIER_KEYWORDS["Huper Optik"]):
+        return "Huper Optik"
+
+    # Solyx
+    if any(kw in film_lower for kw in SUPPLIER_KEYWORDS["Solyx"]):
+        return "Solyx"
+
+    # Edge (catch-all for remaining known Edge products)
+    if any(kw in film_lower for kw in SUPPLIER_KEYWORDS["Edge"]):
+        return "Edge"
+
     return "Unknown"
 
 
