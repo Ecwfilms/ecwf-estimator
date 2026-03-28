@@ -1,0 +1,89 @@
+from collections import defaultdict
+
+def calculate_square_feet(windows):
+    total_sqft = 0
+    results = []
+
+    for w in windows:
+        qty = w["qty"]
+        width = w["width"]
+        height = w["height"]
+        section = w.get("section", "Unassigned")
+        film = w.get("film", "Unassigned")
+        worksheet_sqft = w.get("worksheet_sqft", 0)
+
+        total_sqft += worksheet_sqft
+
+        results.append({
+            "section": section,
+            "film": film,
+            "qty": qty,
+            "width": width,
+            "height": height,
+            "worksheet_sqft": worksheet_sqft
+        })
+
+    return results, round(total_sqft, 2)
+
+
+def _best_orientation_for_row(pane, used_width, roll_width):
+    options = [
+        {"width": pane["width"], "height": pane["height"]},
+        {"width": pane["height"], "height": pane["width"]}
+    ]
+
+    valid = [o for o in options if used_width + o["width"] <= roll_width]
+
+    if not valid:
+        return None
+
+    valid.sort(key=lambda o: (o["height"], -(used_width + o["width"])))
+    return valid[0]
+
+
+def optimize_for_roll_width(panes, roll_width):
+    remaining = [{"width": p["width"], "height": p["height"]} for p in panes]
+    remaining.sort(key=lambda p: max(p["width"], p["height"]), reverse=True)
+
+    rows = []
+
+    while remaining:
+        row = []
+        used_width = 0
+        pull_to = 0
+        still_unplaced = []
+
+        for pane in remaining:
+            best = _best_orientation_for_row(pane, used_width, roll_width)
+
+            if best is None:
+                still_unplaced.append(pane)
+                continue
+
+            row.append(best)
+            used_width += best["width"]
+            pull_to = max(pull_to, best["height"])
+
+        rows.append({
+            "panes": row,
+            "used_width": used_width,
+            "pull_to": pull_to,
+            "lanes": len(row)
+        })
+
+        remaining = still_unplaced
+
+    total_inches = sum(r["pull_to"] for r in rows)
+    total_lf = round(total_inches / 12, 2)
+
+    return {
+        "rows": rows,
+        "total_lf": total_lf
+    }
+
+
+def group_windows_by_section(windows):
+    grouped = defaultdict(list)
+    for w in windows:
+        grouped[w["section"]].append(w)
+    return dict(grouped)

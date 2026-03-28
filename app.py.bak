@@ -1,0 +1,127 @@
+import streamlit as st
+from worksheet_parser import extract_text_from_pdf, extract_window_data
+from pricing_engine import optimize_for_roll_width, group_windows_by_section
+from pane_expander import expand_windows
+
+st.set_page_config(page_title="ECWF Estimator Prototype", layout="wide")
+
+st.title("East Coast Window Estimator")
+st.write("Upload a TintWiz worksheet (PDF or screenshot).")
+
+cost_per_sqft = st.number_input(
+    "Temporary Material Cost per Sqft ($)",
+    min_value=0.0,
+    value=2.00,
+    step=0.01
+)
+
+buffer_lf = st.number_input(
+    "Installer Buffer (LF)",
+    min_value=0.0,
+    value=10.0,
+    step=1.0
+)
+
+uploaded_file = st.file_uploader(
+    "Upload Worksheet",
+    type=["pdf", "png", "jpg", "jpeg"],
+    accept_multiple_files=False
+)
+
+def estimate_material_cost(roll_width, required_lf, buffer_lf, cost_per_sqft):
+    recommended_order_lf = round(required_lf + buffer_lf, 2)
+    ordered_sqft = round((roll_width / 12) * recommended_order_lf, 2)
+    material_cost = round(ordered_sqft * cost_per_sqft, 2)
+    return recommended_order_lf, ordered_sqft, material_cost
+
+if uploaded_file:
+    if uploaded_file.type == "application/pdf":
+        text = extract_text_from_pdf(uploaded_file)
+        parsed = extract_window_data(text)
+
+        windows = parsed["windows"]
+        section_meta = parsed["section_meta"]
+        project_total_sqft = parsed["project_total_sqft"]
+        project_total_panes = parsed["project_total_panes"]
+
+        section_groups = group_windows_by_section(windows)
+
+        st.subheader("Project Summary")
+        st.write(f"Total Square Footage: {project_total_sqft} sqft")
+        st.write(f"Total Pane Count: {project_total_panes}")
+
+        st.subheader("Order This")
+
+        order_lines = []
+        total_material_cost = 0
+
+        for section_name, section_windows in section_groups.items():
+            section_panes = expand_windows(section_windows)
+
+            film_names = sorted(list(set([w["film"] for w in section_windows])))
+            film_display = ", ".join(film_names)
+
+            section_sqft = section_meta.get(section_name, {}).get("room_total_sqft", 0)
+            section_panes_total = section_meta.get(section_name, {}).get("room_total_panes", len(section_panes))
+
+            roll_options = [48, 60, 72]
+            comparison = []
+
+            for roll in roll_options:
+                optimization = optimize_for_roll_width(section_panes, roll)
+                recommended_order_lf, ordered_sqft, material_cost = estimate_material_cost(
+                    roll,
+                    optimization["total_lf"],
+                    buffer_lf,
+                    cost_per_sqft
+                )
+
+                comparison.append({
+                    "roll": roll,
+                    "required_lf": optimization["total_lf"],
+                    "recommended_order_lf": recommended_order_lf,
+                    "ordered_sqft": ordered_sqft,
+                    "material_cost": material_cost,
+                    "rows": optimization["rows"]
+                })
+
+            best_by_cost = min(comparison, key=lambda x: x["material_cost"])
+
+            st.subheader(section_name)
+            st.write(f"Product: {film_display}")
+            st.write(f"Panes: {section_panes_total}")
+            st.write(f"Sqft: {section_sqft}")
+            st.write(f'Best current option: {best_by_cost["roll"]}" roll')
+            st.write(f"Required LF: {best_by_cost['required_lf']}")
+            st.write(f"Buffer: {buffer_lf}")
+            st.write(f"Recommended Order: {best_by_cost['recommended_order_lf']} LF")
+            st.write(f"Material Cost: ${best_by_cost['material_cost']}")
+
+            order_lines.append(
+                f'{film_display} — {best_by_cost["roll"]}" x {best_by_cost["recommended_order_lf"]} LF'
+            )
+            total_material_cost += best_by_cost["material_cost"]
+
+            with st.expander(f"Show roll comparison — {section_name}"):
+                for item in comparison:
+                    st.write(
+                        f'{item["roll"]}" roll | Required LF: {item["required_lf"]} | Recommended Order: {item["recommended_order_lf"]} LF | Ordered Sqft: {item["ordered_sqft"]} | Material Cost: ${item["material_cost"]}'
+                    )
+
+            with st.expander(f"Show pull rows — {section_name}"):
+                for i, row in enumerate(best_by_cost["rows"], start=1):
+                    pane_text = " + ".join([f'{p["width"]}x{p["height"]}' for p in row["panes"]])
+                    st.write(
+                        f'Row {i}: {pane_text} | Used Width: {row["used_width"]} | Pull to: {row["pull_to"]} | Lanes: {row["lanes"]}'
+                    )
+
+        st.subheader("Order this")
+        for line in order_lines:
+            st.write(line)
+
+        st.markdown("---")
+        st.subheader("Total Material Cost")
+        st.write(f"${round(total_material_cost, 2)}")
+
+    elif uploaded_file.type.startswith("image"):
+        st.image(uploaded_file, caption=uploaded_file.name)
